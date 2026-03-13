@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maestro - Kanban Board</title>
+    <link rel="stylesheet" href="/static/board.css">
+    <link rel="stylesheet" href="/static/chat.css">
+</head>
+<body>
+    <div class="header">
+        <h1>MAESTRO</h1>
+        <div class="header-stats" id="stats">
+            <span class="stat"><span class="stat-dot" style="background: var(--text-secondary)"></span> <span id="stat-todo">0</span> todo</span>
+            <span class="stat"><span class="stat-dot" style="background: var(--yellow)"></span> <span id="stat-working">0</span> working</span>
+            <span class="stat"><span class="stat-dot" style="background: var(--accent)"></span> <span id="stat-review">0</span> review</span>
+            <span class="stat"><span class="stat-dot" style="background: var(--green)"></span> <span id="stat-done">0</span> done</span>
+            <span class="stat"><span class="stat-dot" style="background: var(--red)"></span> <span id="stat-failed">0</span> failed</span>
+        </div>
+        <div class="header-actions">
+            <select class="backend-select" id="backend-select" onchange="changeBackend()" title="Select CLI backend">
+                <option value="claude">Claude</option>
+                <option value="copilot">Copilot</option>
+                <option value="codex">Codex</option>
+            </select>
+            <span class="connection-status disconnected" id="ws-status" title="WebSocket disconnected"></span>
+            <button class="btn" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark theme">&#9789;</button>
+            <button class="btn btn-primary" onclick="openCreateModal()">+ New Issue</button>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <div class="chat-panel" id="chat-panel">
+            <div class="chat-mode-toggle">
+                <button class="mode-btn active" data-mode="chat" onclick="switchChatMode('chat')">Chat</button>
+                <button class="mode-btn" data-mode="pipeline" onclick="switchChatMode('pipeline')">Pipeline</button>
+            </div>
+            <div class="chat-header chat-mode-only" id="chat-mode-header">
+                <select id="conversation-select" onchange="switchConversation()">
+                    <option value="">-- Select Chat --</option>
+                </select>
+                <button class="btn btn-primary" onclick="newConversation()">+ New</button>
+            </div>
+            <div class="chat-header pipeline-mode-only" id="pipeline-mode-header" style="display:none">
+                <select id="pipeline-select" onchange="switchPipeline()">
+                    <option value="">-- Select Pipeline --</option>
+                </select>
+                <button class="btn btn-primary" onclick="newPipeline()">+ New</button>
+                <span class="auto-approve-indicator on" id="auto-approve-indicator" onclick="toggleAutoApprove()" title="Auto-pilot: ON">AUTO</span>
+            </div>
+            <div id="pipeline-progress" class="pipeline-progress pipeline-mode-only"></div>
+            <div class="phase-indicator pipeline-mode-only" id="phase-indicator">No pipeline selected</div>
+            <div class="chat-messages" id="chat-messages">
+                <div class="chat-empty">Select or create a pipeline to start.</div>
+            </div>
+            <div class="approval-bar pipeline-mode-only" id="approval-bar" style="display:none">
+                <button class="btn btn-primary" onclick="approvePipeline()">Approve</button>
+                <button class="btn btn-reject" onclick="rejectPipeline()">Reject</button>
+            </div>
+            <div class="chat-input-area">
+                <textarea id="chat-input" placeholder="Requirement veya mesaj yazin..." rows="2"></textarea>
+                <button class="btn btn-primary chat-send-btn" onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+
+        <div class="board-area">
+            <div class="board-tabs">
+                <button class="board-tab active" data-tab="kanban" onclick="switchBoardTab('kanban')">Kanban</button>
+                <button class="board-tab" data-tab="artifacts" onclick="switchBoardTab('artifacts')">Artifacts</button>
+                <button class="board-tab" data-tab="terminal" onclick="switchBoardTab('terminal')">Terminal</button>
+                <button class="board-tab" data-tab="quality" onclick="switchBoardTab('quality')">Quality</button>
+                <button class="board-tab" data-tab="context" onclick="switchBoardTab('context')">Context</button>
+            </div>
+
+            <div class="tab-content active" id="tab-kanban">
+                <div class="board" id="board">
+                    <div class="column" data-status="todo">
+                        <div class="column-header">To Do <span class="count" id="count-todo">0</span></div>
+                        <div class="column-body" data-status="todo" id="col-todo"></div>
+                    </div>
+                    <div class="column" data-status="working">
+                        <div class="column-header">Working <span class="count" id="count-working">0</span></div>
+                        <div class="column-body" data-status="working" id="col-working"></div>
+                    </div>
+                    <div class="column" data-status="review">
+                        <div class="column-header">Review <span class="count" id="count-review">0</span></div>
+                        <div class="column-body" data-status="review" id="col-review"></div>
+                    </div>
+                    <div class="column" data-status="done">
+                        <div class="column-header">Done <span class="count" id="count-done">0</span></div>
+                        <div class="column-body" data-status="done" id="col-done"></div>
+                    </div>
+                    <div class="column" data-status="failed">
+                        <div class="column-header">Failed <span class="count" id="count-failed">0</span></div>
+                        <div class="column-body" data-status="failed" id="col-failed"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-artifacts">
+                <div class="artifacts-panel">
+                    <div class="artifacts-sidebar" id="artifacts-sidebar">
+                        <div class="artifacts-sidebar-title">Pipeline Artifacts</div>
+                        <div class="artifacts-nav" id="artifacts-nav">
+                            <div class="chat-empty">Select a pipeline to view artifacts.</div>
+                        </div>
+                    </div>
+                    <div class="artifact-viewer" id="artifact-viewer">
+                        <div class="chat-empty">Select an artifact from the sidebar.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-terminal">
+                <div class="terminal-panel">
+                    <div class="terminal-header">
+                        <span class="terminal-title">Runner Output</span>
+                        <button class="btn" onclick="clearTerminal()">Clear</button>
+                    </div>
+                    <div class="terminal-output" id="terminal-output">
+                        <div class="chat-empty">Terminal output will appear here when a pipeline is running.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-quality">
+                <div class="quality-panel" id="quality-panel">
+                    <div class="chat-empty">Quality check results will appear here.</div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-context">
+                <div class="context-panel" id="context-panel">
+                    <div class="chat-empty">Context information will appear here.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Issue Modal -->
+    <div class="modal-overlay" id="create-modal">
+        <div class="modal">
+            <h2>New Issue</h2>
+            <form id="create-form" onsubmit="return createIssue(event)">
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" id="issue-title" required placeholder="e.g. Fix login timeout bug">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="issue-description" placeholder="Describe the issue..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Priority</label>
+                    <select id="issue-priority">
+                        <option value="high">High</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Labels (comma-separated)</label>
+                    <input type="text" id="issue-labels" placeholder="bug, auth, frontend">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn" onclick="closeCreateModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- New Pipeline Modal -->
+    <div class="modal-overlay" id="pipeline-modal">
+        <div class="modal">
+            <h2>New Pipeline</h2>
+            <form id="pipeline-form" onsubmit="return createPipeline(event)">
+                <div class="form-group">
+                    <label>Requirement</label>
+                    <textarea id="pipeline-requirement" required
+                        placeholder="Describe the feature or change you want to implement..."
+                        rows="5"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn" onclick="closePipelineModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Start Pipeline</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Detail Panel -->
+    <div class="detail-overlay" id="detail-panel">
+        <div class="detail-header">
+            <h2 id="detail-key"></h2>
+            <button class="close-btn" onclick="closeDetail()">&times;</button>
+        </div>
+        <div class="detail-body" id="detail-body"></div>
+    </div>
+
+    <script src="/static/board.js"></script>
+    <script src="/static/chat.js"></script>
+</body>
+</html>
