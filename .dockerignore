@@ -13,16 +13,15 @@ build/
 *.db-shm
 *.db-wal
 .env
+.git/
+.github/
+.idea/
+.claude/
+node_modules/
+frontend/node_modules/
+frontend/.next/
+tests/
 uv.lock
 raw_codex_output.txt
 image.png
-
-# Frontend
-node_modules/
-.next/
-frontend/node_modules/
-frontend/.next/
-frontend/test-results/
-frontend/playwright-report/
-.idea/
-.claude/
+ANALYSIS.md

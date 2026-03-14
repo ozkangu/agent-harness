@@ -8,6 +8,7 @@ from collections.abc import Callable, Awaitable
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -93,6 +94,16 @@ def create_app(
 ) -> tuple[FastAPI, NotifyCallback]:
     """Create the FastAPI application."""
     app = FastAPI(title="Maestro", version="0.1.0")
+
+    # CORS for frontend dev server
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
     ws_manager = ConnectionManager()
 
     # Mount static files
@@ -100,7 +111,22 @@ def create_app(
         app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
     async def _notify(event: str, data: dict) -> None:
-        await ws_manager.broadcast({"event": event, "data": data})
+        await ws_manager.broadcast({"type": event, "event": event, "data": data})
+
+    @app.get("/api/health")
+    async def health_check():
+        """Health check endpoint for monitoring and frontend connectivity."""
+        return {
+            "status": "ok",
+            "version": "0.2.0",
+            "services": {
+                "board": board is not None,
+                "pipeline": pipeline_manager is not None,
+                "chat": chat_store is not None,
+                "context": context_engine is not None,
+                "quality": quality_gate is not None,
+            },
+        }
 
     @app.get("/", response_class=HTMLResponse)
     async def index():
