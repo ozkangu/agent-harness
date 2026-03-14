@@ -18,7 +18,6 @@ from maestro.chat import ChatStore
 from maestro.config import WorkflowLoader
 from maestro.constants import (
     DEFAULT_DB_PATH,
-    DEFAULT_ISSUES_DIR,
     DEFAULT_WEB_PORT,
     WORKFLOW_FILE,
 )
@@ -31,7 +30,6 @@ from maestro.pipeline import PipelineManager
 from maestro.planner import PlannerAgent
 from maestro.quality import QualityGate
 from maestro.models import BackendType
-from maestro.runner import create_runner
 from maestro.runner_pool import RunnerPool
 from maestro.watcher import IssueWatcher
 from maestro.web import create_app

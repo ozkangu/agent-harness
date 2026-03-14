@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import aiosqlite
@@ -196,6 +196,7 @@ class QualityGate:
         limit: int = 20,
     ) -> list[QualityRun]:
         """Get quality run history."""
+        params: tuple[str | int, ...]
         if issue_key:
             query = "SELECT * FROM quality_runs WHERE issue_key = ? ORDER BY id DESC LIMIT ?"
             params = (issue_key, limit)

@@ -275,6 +275,8 @@ def create_app(
     async def send_pipeline_message(pipeline_id: int, req: SendMessageRequest):
         if pipeline_manager is None:
             raise HTTPException(501, "Pipeline feature not configured")
+        if chat_store is None:
+            raise HTTPException(501, "Chat feature not configured")
         pipeline = await chat_store.get_pipeline(pipeline_id)
         if pipeline is None:
             raise HTTPException(404, f"Pipeline {pipeline_id} not found")
@@ -910,7 +912,7 @@ def create_app(
         await ws_manager.connect(websocket)
         try:
             while True:
-                data = await websocket.receive_text()
+                await websocket.receive_text()
                 stats = await board.get_stats()
                 await websocket.send_json({"event": "stats", "data": stats})
         except WebSocketDisconnect:

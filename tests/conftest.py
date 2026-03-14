@@ -5,10 +5,12 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
+import aiosqlite
 import pytest
 import pytest_asyncio
 
 from maestro.board import Board
+from maestro.models import SCHEMA
 
 
 @pytest_asyncio.fixture
@@ -19,6 +21,17 @@ async def board(tmp_path: Path) -> Board:
     await b.connect()
     yield b
     await b.close()
+
+
+@pytest_asyncio.fixture
+async def db(tmp_path: Path) -> aiosqlite.Connection:
+    """Provide a raw aiosqlite connection with the full schema applied."""
+    conn = await aiosqlite.connect(str(tmp_path / "test.db"))
+    conn.row_factory = aiosqlite.Row
+    await conn.executescript(SCHEMA)
+    await conn.commit()
+    yield conn
+    await conn.close()
 
 
 @pytest.fixture

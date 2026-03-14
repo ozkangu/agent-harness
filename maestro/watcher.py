@@ -7,9 +7,9 @@ import logging
 import shutil
 from pathlib import Path
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 from watchdog.events import FileSystemEventHandler, FileCreatedEvent
-from watchdog.observers import Observer
+from watchdog.observers import Observer  # type: ignore[attr-defined]
 
 from maestro.board import Board
 
@@ -47,7 +47,7 @@ class IssueFileHandler(FileSystemEventHandler):
     def on_created(self, event: FileCreatedEvent) -> None:  # type: ignore[override]
         if event.is_directory:
             return
-        path = Path(event.src_path)
+        path = Path(str(event.src_path))
         if path.suffix != ".md":
             return
         if path.parent.name == "archived":
@@ -89,7 +89,7 @@ class IssueWatcher:
     def __init__(self, board: Board, issues_dir: str | Path) -> None:
         self.board = board
         self.issues_dir = Path(issues_dir)
-        self._observer: Observer | None = None
+        self._observer: Observer | None = None  # type: ignore[valid-type]
 
     def start(self, loop: asyncio.AbstractEventLoop) -> None:
         """Start watching the issues directory."""
@@ -104,7 +104,7 @@ class IssueWatcher:
     def stop(self) -> None:
         """Stop the file watcher."""
         if self._observer:
-            self._observer.stop()
-            self._observer.join()
+            self._observer.stop()  # type: ignore[attr-defined]
+            self._observer.join()  # type: ignore[attr-defined]
             self._observer = None
             logger.info("Issue watcher stopped")

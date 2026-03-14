@@ -596,7 +596,7 @@ class PlannerAgent:
             blocked_reason = f"Waiting for {', '.join(deps)}" if deps else None
             await self.board.update_issue(
                 issue.key,
-                depends_on=deps,
+                depends_on=deps,  # type: ignore[arg-type]
                 blocked_reason=blocked_reason,
             )
 

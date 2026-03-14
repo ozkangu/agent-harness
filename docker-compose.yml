@@ -14,6 +14,10 @@ services:
       - MAESTRO_DB_PATH=/data/maestro.db
       - COPILOT_GITHUB_TOKEN=${COPILOT_GITHUB_TOKEN:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - CORTEX_AUTH_ENABLED=${CORTEX_AUTH_ENABLED:-false}
+      - CORTEX_ADMIN_PASSWORD=${CORTEX_ADMIN_PASSWORD:-admin}
+      - CORTEX_JWT_SECRET=${CORTEX_JWT_SECRET:-}
+      - CORTEX_ENCRYPTION_KEY=${CORTEX_ENCRYPTION_KEY:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8420/api/stats')"]

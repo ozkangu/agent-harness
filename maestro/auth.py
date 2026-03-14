@@ -5,7 +5,6 @@ from __future__ import annotations
 import enum
 import hashlib
 import hmac
-import json
 import logging
 import os
 import secrets
@@ -14,6 +13,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import aiosqlite
+import bcrypt
+import jwt
 
 logger = logging.getLogger(__name__)
 
@@ -109,53 +110,50 @@ class APIKey:
 
 
 def _hash_password(password: str) -> str:
-    """Hash a password using SHA-256 with salt."""
-    salt = secrets.token_hex(16)
-    h = hashlib.sha256(f"{salt}:{password}".encode()).hexdigest()
-    return f"{salt}:{h}"
+    """Hash a password using bcrypt."""
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
-def _verify_password(password: str, stored_hash: str) -> bool:
-    """Verify a password against a stored hash."""
+def _verify_password(password: str, stored_hash: str) -> tuple[bool, bool]:
+    """Verify a password against a stored hash.
+
+    Returns (is_valid, needs_rehash).
+    Supports both bcrypt ($2b$ prefix) and legacy SHA-256 (salt:hash) formats.
+    """
+    if stored_hash.startswith("$2b$") or stored_hash.startswith("$2a$"):
+        is_valid = bcrypt.checkpw(password.encode(), stored_hash.encode())
+        return is_valid, False
+
+    # Legacy SHA-256 format: salt:hash
     parts = stored_hash.split(":", 1)
     if len(parts) != 2:
-        return False
+        return False, False
     salt, expected = parts
     actual = hashlib.sha256(f"{salt}:{password}".encode()).hexdigest()
-    return hmac.compare_digest(actual, expected)
+    is_valid = hmac.compare_digest(actual, expected)
+    return is_valid, is_valid  # needs_rehash only if valid
 
 
 def _create_token(user_id: int, username: str, role: str) -> str:
-    """Create a JWT-like HMAC token."""
-    payload = json.dumps({
-        "uid": user_id,
-        "usr": username,
-        "rol": role,
-        "exp": int(time.time()) + _TOKEN_EXPIRY_SECONDS,
-    })
-    import base64
-    b64_payload = base64.urlsafe_b64encode(payload.encode()).decode()
-    sig = hmac.new(_SECRET_KEY.encode(), b64_payload.encode(), hashlib.sha256).hexdigest()
-    return f"{b64_payload}.{sig}"
+    """Create a JWT token using PyJWT."""
+    return jwt.encode(
+        {
+            "uid": user_id,
+            "usr": username,
+            "rol": role,
+            "exp": int(time.time()) + _TOKEN_EXPIRY_SECONDS,
+        },
+        _SECRET_KEY,
+        algorithm="HS256",
+    )
 
 
 def _verify_token(token: str) -> dict | None:
-    """Verify a JWT-like HMAC token. Returns payload dict or None."""
-    parts = token.split(".", 1)
-    if len(parts) != 2:
-        return None
-    b64_payload, sig = parts
-    expected_sig = hmac.new(_SECRET_KEY.encode(), b64_payload.encode(), hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(sig, expected_sig):
-        return None
-    import base64
+    """Verify a JWT token. Returns payload dict or None."""
     try:
-        payload = json.loads(base64.urlsafe_b64decode(b64_payload))
-    except Exception:
+        return jwt.decode(token, _SECRET_KEY, algorithms=["HS256"])
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
         return None
-    if payload.get("exp", 0) < int(time.time()):
-        return None
-    return payload
 
 
 class AuthManager:
@@ -201,7 +199,7 @@ class AuthManager:
         )
         await self._db.commit()
 
-        user = await self._get_user_by_id(cursor.lastrowid)
+        user = await self._get_user_by_id(cursor.lastrowid or 0)
         assert user is not None
         return user
 
@@ -217,8 +215,19 @@ class AuthManager:
             return None
 
         user = self._row_to_user(dict(row))
-        if not _verify_password(password, user.password_hash):
+        is_valid, needs_rehash = _verify_password(password, user.password_hash)
+        if not is_valid:
             return None
+
+        if needs_rehash:
+            new_hash = _hash_password(password)
+            now = datetime.now(timezone.utc).isoformat()
+            await self._db.execute(
+                "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?",
+                (new_hash, now, user.id),
+            )
+            await self._db.commit()
+            logger.info("Password migrated to bcrypt for user: %s", username)
 
         token = _create_token(user.id, user.username, user.role.value)
         return user, token
@@ -228,7 +237,10 @@ class AuthManager:
         payload = _verify_token(token)
         if payload is None:
             return None
-        return await self._get_user_by_id(payload.get("uid"))
+        uid = payload.get("uid")
+        if uid is None:
+            return None
+        return await self._get_user_by_id(uid)
 
     async def verify_api_key(self, key: str) -> User | None:
         """Verify an API key and return the associated User or None."""
@@ -284,7 +296,7 @@ class AuthManager:
         await self._db.commit()
 
         api_key = APIKey(
-            id=cursor.lastrowid,
+            id=cursor.lastrowid or 0,
             name=name,
             key_prefix=key_prefix,
             user_id=user_id,

@@ -7,7 +7,7 @@ import os
 import re
 from pathlib import Path
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 from jinja2 import Template
 
 from maestro.models import (
@@ -66,11 +66,11 @@ def parse_workflow(content: str) -> MaestroConfig:
     body = parts[2].strip()
 
     # Parse YAML with env var resolution
-    raw = yaml.safe_load(yaml_text) or {}
-    raw = _resolve_env_recursive(raw)
+    raw: dict = yaml.safe_load(yaml_text) or {}
+    raw = _resolve_env_recursive(raw)  # type: ignore[assignment]
 
     # Build config objects
-    copilot_raw = raw.get("copilot", {}) or {}
+    copilot_raw: dict = raw.get("copilot", {}) or {}  # type: ignore[assignment]
 
     # Parse backend type
     backend_str = copilot_raw.get("backend", "claude")
@@ -99,8 +99,8 @@ def parse_workflow(content: str) -> MaestroConfig:
         extra_args=copilot_raw.get("extra_args", []),
     )
 
-    orch_raw = raw.get("orchestrator", {}) or {}
-    hooks_raw = orch_raw.get("hooks", {}) or {}
+    orch_raw: dict = raw.get("orchestrator", {}) or {}  # type: ignore[assignment]
+    hooks_raw: dict = orch_raw.get("hooks", {}) or {}  # type: ignore[assignment]
     hooks = HooksConfig(
         after_create=hooks_raw.get("after_create"),
         before_run=hooks_raw.get("before_run"),
@@ -134,7 +134,7 @@ def parse_workflow(content: str) -> MaestroConfig:
 
     # Parse optional phase_backends section
     phase_backends: dict[PipelinePhase, PhaseBackendOverride] = {}
-    phase_backends_raw = raw.get("phase_backends", {}) or {}
+    phase_backends_raw: dict = raw.get("phase_backends", {}) or {}  # type: ignore[assignment]
     for phase_key, phase_cfg in phase_backends_raw.items():
         try:
             phase = PipelinePhase(phase_key)

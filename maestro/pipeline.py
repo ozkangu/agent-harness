@@ -12,7 +12,6 @@ from maestro.chat import ChatStore
 from maestro.models import (
     IssueStatus,
     MessageRole,
-    MaestroConfig,
     PHASE_TRANSITIONS,
     PipelinePhase,
 )

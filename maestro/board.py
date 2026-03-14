@@ -54,7 +54,7 @@ class Board:
             "SELECT MAX(id) as max_id FROM issues"
         ) as cursor:
             row = await cursor.fetchone()
-            next_id = (row["max_id"] or 0) + 1
+            next_id = (row["max_id"] or 0) + 1 if row else 1
         return f"{ISSUE_KEY_PREFIX}-{next_id}"
 
     async def _run_migrations(self) -> None:

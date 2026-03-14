@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from datetime import datetime, timezone
 
@@ -40,7 +39,7 @@ class ChatStore:
             (name, requirement, PipelinePhase.REPO_CONTEXT.value, now, now),
         )
         await self.db.commit()
-        pipeline_id = cursor.lastrowid
+        pipeline_id = cursor.lastrowid or 0
         pipeline = await self.get_pipeline(pipeline_id)
         assert pipeline is not None
         logger.info("Created pipeline %d: %s", pipeline_id, name)
@@ -141,7 +140,7 @@ class ChatStore:
             (title, ConversationStatus.ACTIVE.value, now, now, pipeline_id),
         )
         await self.db.commit()
-        conv_id = cursor.lastrowid
+        conv_id = cursor.lastrowid or 0
         conv = await self.get_conversation(conv_id)
         assert conv is not None
         logger.info("Created conversation %d: %s", conv_id, title)

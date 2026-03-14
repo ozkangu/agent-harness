@@ -83,7 +83,7 @@ class MCPClientManager:
         )
         await self._db.commit()
 
-        server_id = cursor.lastrowid
+        server_id = cursor.lastrowid or 0
         server = await self.get_server(server_id)
         assert server is not None
 
@@ -246,14 +246,17 @@ class MCPClientManager:
 
         if session is not None:
             try:
-                await session.__aexit__(None, None, None)
+                aexit_fn = getattr(session, "__aexit__", None)
+                if aexit_fn is not None:
+                    await aexit_fn(None, None, None)
             except Exception:
                 pass
 
         if conn is not None:
             try:
-                if hasattr(conn, "__aexit__"):
-                    await conn.__aexit__(None, None, None)
+                aexit = getattr(conn, "__aexit__", None)
+                if aexit is not None:
+                    await aexit(None, None, None)
             except Exception:
                 pass
 

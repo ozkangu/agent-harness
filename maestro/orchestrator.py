@@ -6,7 +6,7 @@ import asyncio
 import logging
 import random
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from maestro.board import Board
 from maestro.config import WorkflowLoader, render_prompt
@@ -137,7 +137,6 @@ class Orchestrator:
             backoff += jitter
 
             # Check if enough time has passed since last update
-            import time
             from datetime import datetime, timezone
 
             now = datetime.now(timezone.utc)

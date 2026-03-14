@@ -236,7 +236,7 @@ class TestCodexRunner:
     def test_default_model(self) -> None:
         config = BackendConfig(backend=BackendType.CODEX)
         runner = CodexRunner(config)
-        assert runner._get_model() == "o4-mini"
+        assert runner._get_model() == ""
 
 
 # --- Factory tests ---

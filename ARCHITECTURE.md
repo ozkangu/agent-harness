@@ -115,7 +115,7 @@ Maestro is a single-process Python application with an embedded FastAPI web serv
 
 | Module | File | Purpose |
 |--------|------|---------|
-| **Auth** | `maestro/auth.py` | JWT authentication (HMAC-SHA256, 24h expiry), RBAC (admin/engineer/viewer), API key support, password hashing (SHA-256 + salt). |
+| **Auth** | `maestro/auth.py` | JWT authentication (PyJWT, HS256, 24h expiry), RBAC (admin/engineer/viewer), API key support, password hashing (bcrypt, with transparent legacy SHA-256 migration). |
 | **Audit** | `maestro/audit.py` | Immutable audit trail. Logs all write operations with user, action, resource, IP, timestamp. Supports query filtering and CSV export. |
 | **Secrets** | `maestro/secrets.py` | Encrypted credential storage. AES-256 via Fernet (with XOR fallback). Secrets injected into runners as environment variables. Values never exposed in API responses. |
 | **Policy** | `maestro/policy.py` | SOUL.md policy engine. Tool approval/denial rules, budget limits with scope-based tracking. Auto-loads SOUL.md from repo root. |
@@ -711,12 +711,16 @@ maestro start
 
 ### Dependencies
 
+**Package management:** [uv](https://docs.astral.sh/uv/) (`uv sync` to install, `uv run` to execute)
+
 **Backend (Python):**
 - `aiosqlite` -- async SQLite
 - `fastapi` + `uvicorn` -- web server
 - `click` -- CLI framework
 - `rich` -- terminal formatting
 - `jinja2` + `pyyaml` -- WORKFLOW.md parsing
+- `bcrypt` -- password hashing
+- `PyJWT` -- JWT token encoding/decoding
 - `mcp` -- MCP server/client (optional)
 - `cryptography` -- AES-256 encryption (optional, XOR fallback)
 

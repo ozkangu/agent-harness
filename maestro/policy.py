@@ -164,7 +164,7 @@ class PolicyEngine:
         )
         await self._db.commit()
 
-        policy = await self.get_policy(cursor.lastrowid)
+        policy = await self.get_policy(cursor.lastrowid or 0)
         assert policy is not None
         return policy
 

@@ -166,15 +166,15 @@ Failed quality checks trigger retries. Results are stored in `quality_runs` tabl
 ## Quick Start
 
 ```bash
-# Install
-pip install -e ".[dev]"
+# Install (requires uv: https://docs.astral.sh/uv/)
+uv sync
 
 # Create workflow config
 cp WORKFLOW.example.md WORKFLOW.md
 # Edit WORKFLOW.md with your backend settings
 
 # Start
-maestro start
+uv run maestro start
 
 # Open http://localhost:8420
 ```
@@ -411,9 +411,9 @@ SQLite with WAL mode. 16 tables:
 ## Testing
 
 ```bash
-python -m pytest tests/ -q          # Run all tests
-python -m pytest tests/ -x          # Stop on first failure
-python -m pytest tests/test_web.py  # Single module
+uv run pytest tests/ -q          # Run all tests
+uv run pytest tests/ -x          # Stop on first failure
+uv run pytest tests/test_web.py  # Single module
 ```
 
 ## Backend Support

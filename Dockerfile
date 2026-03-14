@@ -8,14 +8,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy project files
-COPY pyproject.toml .
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Copy dependency files first for layer caching
+COPY pyproject.toml uv.lock .python-version ./
+
+# Copy project source
 COPY maestro/ maestro/
 COPY static/ static/
 COPY WORKFLOW.example.md WORKFLOW.md
 
-# Install Python package
-RUN pip install --no-cache-dir -e .
+# Install Python package (production only, no dev deps)
+RUN uv sync --frozen --no-dev
 
 # Create data directory for SQLite
 RUN mkdir -p /data
@@ -24,4 +29,4 @@ EXPOSE 8420
 
 ENV MAESTRO_DB_PATH=/data/maestro.db
 
-CMD ["maestro", "--db", "/data/maestro.db", "start", "--port", "8420"]
+CMD ["uv", "run", "maestro", "--db", "/data/maestro.db", "start", "--port", "8420"]

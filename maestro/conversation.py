@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Awaitable, Callable
-from datetime import datetime, timezone
 
 from maestro.board import Board
 from maestro.chat import ChatStore
@@ -13,7 +12,6 @@ from maestro.models import (
     ChatMessage,
     Conversation,
     MessageRole,
-    PipelinePhase,
 )
 from maestro.runner import BaseRunner
 from maestro.runner_pool import RunnerPool

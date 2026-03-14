@@ -55,7 +55,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         # Check if path is public
         path = request.url.path
-        if any(path.startswith(p) for p in PUBLIC_PATHS):
+        if any(path == p or (p != "/" and path.startswith(p)) for p in PUBLIC_PATHS):
             return await call_next(request)
 
         # Try Bearer token
