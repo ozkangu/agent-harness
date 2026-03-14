@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Loader2, WifiOff, Bot, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { healthApi } from "@/lib/api";
+import { useTranslation } from "@/hooks/use-translation";
 
 interface ConnectionStatusProps {
   children: React.ReactNode;
@@ -12,6 +13,7 @@ interface ConnectionStatusProps {
 export function ConnectionStatus({ children }: ConnectionStatusProps) {
   const [status, setStatus] = useState<"connecting" | "connected" | "error">("connecting");
   const [retryCount, setRetryCount] = useState(0);
+  const { t } = useTranslation();
 
   useEffect(() => {
     let cancelled = false;
@@ -53,13 +55,13 @@ export function ConnectionStatus({ children }: ConnectionStatusProps) {
         </div>
 
         <h2 className="text-xl font-bold mb-2">
-          {status === "connecting" ? "Connecting to Maestro..." : "Connection Failed"}
+          {status === "connecting" ? t("connection.connecting") : t("connection.failed")}
         </h2>
 
         <p className="text-sm text-muted-foreground mb-6">
           {status === "connecting"
-            ? "Establishing connection to the backend server."
-            : "Could not reach the Maestro backend. Make sure the server is running on port 8420."}
+            ? t("connection.connectingDesc")
+            : t("connection.failedDesc")}
         </p>
 
         {status === "error" && (
@@ -69,17 +71,17 @@ export function ConnectionStatus({ children }: ConnectionStatusProps) {
               className="gap-2"
             >
               <RefreshCw className="h-4 w-4" />
-              Retry Connection
+              {t("connection.retry")}
             </Button>
 
             <div className="bg-muted/50 rounded-lg p-3 text-left">
               <p className="text-xs font-mono text-muted-foreground">
-                $ maestro start --port 8420
+                {t("connection.command")}
               </p>
             </div>
 
             <p className="text-[10px] text-muted-foreground">
-              Auto-retrying... ({retryCount} attempts)
+              {t("connection.autoRetrying", { count: String(retryCount) })}
             </p>
           </div>
         )}

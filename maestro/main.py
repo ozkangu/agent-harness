@@ -32,8 +32,15 @@ from maestro.planner import PlannerAgent
 from maestro.quality import QualityGate
 from maestro.models import BackendType
 from maestro.runner import create_runner
+from maestro.runner_pool import RunnerPool
 from maestro.watcher import IssueWatcher
 from maestro.web import create_app
+from maestro.mcp_server import create_mcp_server
+from maestro.mcp_client import MCPClientManager
+from maestro.auth import AuthManager
+from maestro.audit import AuditLogger
+from maestro.secrets import SecretManager
+from maestro.policy import PolicyEngine
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -85,17 +92,44 @@ async def _start_async(db_path: str, workflow: str, port: int, no_web: bool) -> 
     loader = WorkflowLoader(workflow)
     cfg = loader.load()
 
+    # Runner pool with per-phase backend selection
+    runner_pool = RunnerPool(cfg.copilot)
+    for phase, override in cfg.phase_backends.items():
+        runner_pool.set_phase_override(override)
+
     # Pipeline components
     chat_store = ChatStore(board.db)
-    runner = create_runner(cfg.copilot)
-    planner = PlannerAgent(runner, board, chat_store)
+    planner = PlannerAgent(runner_pool, board, chat_store)
 
-    # New: Context engine, quality gate, entropy manager
+    # MCP client manager
+    mcp_client = MCPClientManager(board.db)
+    await mcp_client.initialize()
+
+    # Context engine with MCP tools integration
     repo_dir = cfg.orchestrator.repo_url or "."
-    context_engine = ContextEngine(chat_store, repo_dir=repo_dir)
+    context_engine = ContextEngine(chat_store, repo_dir=repo_dir, mcp_client=mcp_client)
+
+    # MCP server (Cortex as MCP server)
+    mcp_server = create_mcp_server(context_engine, chat_store)
+
+    # Enterprise security components
+    import os
+    auth_enabled = os.environ.get("CORTEX_AUTH_ENABLED", "false").lower() in ("true", "1", "yes")
+    auth_manager = AuthManager(board.db, enabled=auth_enabled)
+    await auth_manager.initialize()
+
+    audit_logger = AuditLogger(board.db)
+    await audit_logger.initialize()
+
+    secret_manager = SecretManager(board.db)
+    await secret_manager.initialize()
+
+    policy_engine = PolicyEngine(board.db, repo_dir=repo_dir)
+    await policy_engine.initialize()
+
     quality_gate = QualityGate(chat_store, board.db)
     entropy_manager = EntropyManager(
-        runner=runner,
+        runner=runner_pool.default_runner,
         context_engine=context_engine,
         quality_gate=quality_gate,
         chat_store=chat_store,
@@ -111,9 +145,9 @@ async def _start_async(db_path: str, workflow: str, port: int, no_web: bool) -> 
     )
     await pipeline_manager.resume_incomplete_pipelines()
 
-    # New: Conversation manager
+    # Conversation manager
     conversation_manager = ConversationManager(
-        chat_store, board, runner, context_engine, pipeline_manager,
+        chat_store, board, runner_pool, context_engine, pipeline_manager,
     )
 
     # Orchestrator wired with pipeline callback and new components
@@ -122,6 +156,7 @@ async def _start_async(db_path: str, workflow: str, port: int, no_web: bool) -> 
         on_issue_completed=pipeline_manager.notify_issue_completed,
         quality_gate=quality_gate,
         context_engine=context_engine,
+        runner_pool=runner_pool,
     )
     watcher = IssueWatcher(board, cfg.orchestrator.issues_dir)
 
@@ -144,7 +179,7 @@ async def _start_async(db_path: str, workflow: str, port: int, no_web: bool) -> 
     if not no_web:
         async def _on_backend_changed(backend: BackendType, model: str) -> None:
             new_cfg = loader.load()
-            planner.runner = create_runner(new_cfg.copilot)
+            runner_pool.update_default(new_cfg.copilot)
             logger.info("Backend changed to %s (model=%s)", backend.value, model or "default")
 
         app, notify = create_app(
@@ -157,6 +192,13 @@ async def _start_async(db_path: str, workflow: str, port: int, no_web: bool) -> 
             entropy_manager=entropy_manager,
             workflow_loader=loader,
             on_backend_changed=_on_backend_changed,
+            runner_pool=runner_pool,
+            mcp_client=mcp_client,
+            mcp_server=mcp_server,
+            auth_manager=auth_manager,
+            audit_logger=audit_logger,
+            secret_manager=secret_manager,
+            policy_engine=policy_engine,
         )
         # Wire the WebSocket notify callback to pipeline_manager, orchestrator, and conversation_manager
         pipeline_manager._notify = notify

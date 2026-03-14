@@ -46,6 +46,10 @@ import { MarkdownContent } from "@/components/ui/markdown-renderer";
 import { TerminalViewer } from "@/components/pipeline/terminal-viewer";
 import { PipelineCompare } from "@/components/pipeline/pipeline-compare";
 import { PipelineTimeline } from "@/components/pipeline/pipeline-timeline";
+import { PipelineSkeleton } from "@/components/pipeline/pipeline-skeleton";
+import { TemplateGallery } from "@/components/pipeline/template-gallery";
+import { useVirtualList } from "@/hooks/use-virtual-list";
+import { useTranslation } from "@/hooks/use-translation";
 import { PHASE_LABELS, PHASE_ORDER, type PipelinePhase, type Pipeline } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -136,6 +140,7 @@ function PhaseStatus({ phase, currentPhase }: { phase: PipelinePhase; currentPha
 }
 
 function PipelineProgress({ currentPhase }: { currentPhase: PipelinePhase }) {
+  const { phaseBackends } = useAppStore();
   const [expanded, setExpanded] = useState(false);
   const visiblePhases = expanded
     ? PHASE_ORDER
@@ -187,6 +192,11 @@ function PipelineProgress({ currentPhase }: { currentPhase: PipelinePhase }) {
         {visiblePhases.map((phase, idx) => (
           <div key={phase} className="flex items-center">
             <PhaseStatus phase={phase} currentPhase={currentPhase} />
+            {phaseBackends && phaseBackends[phase]?.overridden && (
+              <span className="ml-1 text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                {(phaseBackends[phase] as { backend?: string }).backend}
+              </span>
+            )}
             {idx < visiblePhases.length - 1 && (
               <div className="ml-3.5 border-l border-border h-2 -mb-2" />
             )}
@@ -199,6 +209,7 @@ function PipelineProgress({ currentPhase }: { currentPhase: PipelinePhase }) {
 
 function CreatePipelineForm() {
   const { createPipeline } = useAppStore();
+  const { t } = useTranslation();
   const [requirement, setRequirement] = useState("");
   const [repoUrl, setRepoUrl] = useState("");
   const [targetBranch, setTargetBranch] = useState("");
@@ -226,7 +237,7 @@ function CreatePipelineForm() {
         </div>
         <h2 className="text-2xl font-bold mb-2">Start a Pipeline</h2>
         <p className="text-muted-foreground mb-6">
-          Describe your requirement in natural language. Maestro will analyze
+          {t("pipeline.requirementHint").split(".")[0]}.
           your codebase, plan the work, generate user stories, write code,
           review, and test - all automatically.
         </p>
@@ -271,6 +282,7 @@ function CreatePipelineForm() {
                 value={requirement}
                 onChange={(e) => setRequirement(e.target.value)}
                 placeholder="e.g., Add a user authentication system with login, register, and password reset functionality... (supports **markdown**)"
+                aria-label={t("pipeline.requirementLabel")}
                 className="min-h-[120px]"
               />
             )}
@@ -319,28 +331,102 @@ function CreatePipelineForm() {
             size="lg"
           >
             <Sparkles className="h-4 w-4" />
-            Start AI Pipeline
+            {t("pipeline.startPipeline")}
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 mt-6">
-          {[
-            "Build a REST API with CRUD operations",
-            "Add OAuth authentication with Google",
-            "Create a real-time chat feature",
-            "Implement file upload with S3 storage",
-          ].map((suggestion) => (
-            <button
-              key={suggestion}
-              onClick={() => setRequirement(suggestion)}
-              className="text-left text-xs p-3 rounded-lg border border-border hover:bg-accent transition-colors"
-            >
-              {suggestion}
-            </button>
-          ))}
-        </div>
+        <Separator className="my-6" />
+        <h3 className="text-sm font-semibold mb-3">{t("pipeline.orChooseTemplate")}</h3>
+        <TemplateGallery onSelect={(req) => setRequirement(req)} />
       </div>
     </div>
+  );
+}
+
+function PipelineMessageList({
+  messages,
+  chatLoading,
+  scrollRef,
+}: {
+  messages: import("@/types").Message[];
+  chatLoading: boolean;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const useVirtual = messages.length > 50;
+  const { parentRef, virtualItems, totalSize } = useVirtualList({
+    count: messages.length,
+    estimateSize: () => 120,
+    overscan: 10,
+    enabled: useVirtual,
+  });
+
+  const renderMessage = (msg: import("@/types").Message) => (
+    <div className="mb-4">
+      <div className="flex items-center gap-2 mb-1">
+        {msg.role === "assistant" ? (
+          <Bot className="h-4 w-4 text-violet-400" />
+        ) : msg.role === "system" ? (
+          <AlertCircle className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <div className="h-4 w-4 rounded-full bg-primary flex items-center justify-center">
+            <span className="text-[8px] text-primary-foreground">U</span>
+          </div>
+        )}
+        <span className="text-xs font-medium capitalize">{msg.role}</span>
+        {msg.phase && (
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+            {PHASE_LABELS[msg.phase]}
+          </Badge>
+        )}
+        <span className="text-[10px] text-muted-foreground ml-auto">
+          {new Date(msg.created_at).toLocaleTimeString()}
+        </span>
+      </div>
+      <div className="ml-6 text-sm whitespace-pre-wrap rounded-lg bg-muted/30 p-3">
+        {msg.content}
+      </div>
+    </div>
+  );
+
+  if (useVirtual) {
+    return (
+      <div ref={parentRef} className="h-full overflow-auto p-4">
+        <div className="relative w-full" style={{ height: `${totalSize}px` }}>
+          {virtualItems.map((virtualItem) => (
+            <div
+              key={messages[virtualItem.index].id}
+              className="absolute top-0 left-0 w-full"
+              style={{
+                height: `${virtualItem.size}px`,
+                transform: `translateY(${virtualItem.start}px)`,
+              }}
+            >
+              {renderMessage(messages[virtualItem.index])}
+            </div>
+          ))}
+        </div>
+        {chatLoading && (
+          <div className="flex items-center gap-2 text-muted-foreground ml-6">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-sm">AI is working...</span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <ScrollArea className="h-full p-4" ref={scrollRef}>
+      {messages.map((msg) => (
+        <div key={msg.id}>{renderMessage(msg)}</div>
+      ))}
+      {chatLoading && (
+        <div className="flex items-center gap-2 text-muted-foreground ml-6">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span className="text-sm">AI is working...</span>
+        </div>
+      )}
+    </ScrollArea>
   );
 }
 
@@ -500,7 +586,10 @@ export function PipelineView() {
     deletePipeline,
     addToast,
     runnerOutput,
+    loading,
   } = useAppStore();
+
+  if (loading) return <PipelineSkeleton />;
 
   const [input, setInput] = useState("");
   const [activeTab, setActiveTab] = useState<"messages" | "artifacts" | "terminal" | "audit">("messages");
@@ -742,42 +831,11 @@ export function PipelineView() {
         <ArtifactsPanel pipelineId={pipeline.id} />
       ) : (
       <div className="flex-1 relative">
-        <ScrollArea className="h-full p-4" ref={scrollRef}>
-          {pipelineMessages.map((msg) => (
-            <div key={msg.id} className="mb-4">
-              <div className="flex items-center gap-2 mb-1">
-                {msg.role === "assistant" ? (
-                  <Bot className="h-4 w-4 text-violet-400" />
-                ) : msg.role === "system" ? (
-                  <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <div className="h-4 w-4 rounded-full bg-primary flex items-center justify-center">
-                    <span className="text-[8px] text-primary-foreground">U</span>
-                  </div>
-                )}
-                <span className="text-xs font-medium capitalize">{msg.role}</span>
-                {msg.phase && (
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                    {PHASE_LABELS[msg.phase]}
-                  </Badge>
-                )}
-                <span className="text-[10px] text-muted-foreground ml-auto">
-                  {new Date(msg.created_at).toLocaleTimeString()}
-                </span>
-              </div>
-              <div className="ml-6 text-sm whitespace-pre-wrap rounded-lg bg-muted/30 p-3">
-                {msg.content}
-              </div>
-            </div>
-          ))}
-
-          {chatLoading && (
-            <div className="flex items-center gap-2 text-muted-foreground ml-6">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-sm">AI is working...</span>
-            </div>
-          )}
-        </ScrollArea>
+        <PipelineMessageList
+          messages={pipelineMessages}
+          chatLoading={chatLoading}
+          scrollRef={scrollRef}
+        />
 
         {pipelineMessages.length > 3 && (
           <button

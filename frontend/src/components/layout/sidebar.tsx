@@ -45,6 +45,7 @@ export function Sidebar() {
         onClick={() => setSidebarOpen(false)}
       />
     <aside
+      aria-label="Sidebar navigation"
       className={cn(
         "border-r border-border bg-card flex flex-col shrink-0 fixed md:relative z-50 h-[calc(100vh-3.5rem)] md:h-auto transition-all duration-200",
         collapsed ? "w-14" : "w-64"
@@ -246,6 +247,7 @@ export function Sidebar() {
           className="h-7 w-7"
           onClick={() => setSidebarCollapsed(!collapsed)}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? (
             <ChevronsRight className="h-3.5 w-3.5" />

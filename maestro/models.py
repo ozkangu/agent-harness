@@ -464,6 +464,7 @@ class MaestroConfig:
     copilot: CopilotConfig = field(default_factory=CopilotConfig)
     orchestrator: OrchestratorConfig = field(default_factory=OrchestratorConfig)
     prompt_template: str = ""
+    phase_backends: dict = field(default_factory=dict)
 
 
 SCHEMA = """
@@ -503,7 +504,8 @@ CREATE TABLE IF NOT EXISTS issues (
     story_id TEXT,
     depends_on TEXT DEFAULT '[]',
     blocked_reason TEXT,
-    agent_name TEXT
+    agent_name TEXT,
+    task_type TEXT DEFAULT 'standard'
 );
 
 CREATE TABLE IF NOT EXISTS messages (
@@ -571,5 +573,115 @@ CREATE TABLE IF NOT EXISTS entropy_tasks (
     findings TEXT,
     created_at TEXT NOT NULL,
     completed_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS phase_backend_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    phase TEXT UNIQUE NOT NULL,
+    backend TEXT NOT NULL,
+    model TEXT DEFAULT '',
+    binary TEXT DEFAULT '',
+    budget_usd REAL,
+    extra_args TEXT DEFAULT '[]'
+);
+
+CREATE TABLE IF NOT EXISTS mcp_servers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    transport TEXT NOT NULL DEFAULT 'stdio',
+    command TEXT NOT NULL,
+    args TEXT DEFAULT '[]',
+    env TEXT DEFAULT '{}',
+    enabled INTEGER DEFAULT 1,
+    status TEXT DEFAULT 'disconnected',
+    tools TEXT DEFAULT '[]',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'engineer',
+    team TEXT DEFAULT '',
+    is_active INTEGER DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS api_keys (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    key_prefix TEXT NOT NULL,
+    key_hash TEXT NOT NULL,
+    user_id INTEGER NOT NULL,
+    permissions TEXT DEFAULT '[]',
+    expires_at TEXT,
+    created_at TEXT NOT NULL,
+    last_used_at TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+    id TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    ip_address TEXT DEFAULT '',
+    user_agent TEXT DEFAULT '',
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    username TEXT DEFAULT '',
+    action TEXT NOT NULL,
+    resource_type TEXT DEFAULT '',
+    resource_id TEXT DEFAULT '',
+    result TEXT DEFAULT 'success',
+    details TEXT DEFAULT '',
+    ip_address TEXT DEFAULT '',
+    user_agent TEXT DEFAULT '',
+    timestamp TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp);
+CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action);
+
+CREATE TABLE IF NOT EXISTS secrets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    encrypted_value TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    created_by TEXT DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS security_policies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    rules TEXT DEFAULT '{}',
+    scope TEXT DEFAULT 'global',
+    scope_id TEXT DEFAULT '',
+    enabled INTEGER DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS budget_limits (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scope TEXT NOT NULL DEFAULT 'global',
+    scope_id TEXT DEFAULT '',
+    max_budget_usd REAL NOT NULL DEFAULT 100.0,
+    current_spend_usd REAL NOT NULL DEFAULT 0.0,
+    reset_period TEXT DEFAULT 'monthly',
+    last_reset TEXT,
+    created_at TEXT NOT NULL
 );
 """

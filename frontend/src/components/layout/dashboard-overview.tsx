@@ -28,6 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAppStore } from "@/stores/app-store";
+import { useTranslation } from "@/hooks/use-translation";
 import { PHASE_LABELS } from "@/types";
 import { ActivityFeed } from "@/components/layout/activity-feed";
 import { cn } from "@/lib/utils";
@@ -220,6 +221,7 @@ export function DashboardOverview() {
     conversations,
   } = useAppStore();
 
+  const { t } = useTranslation();
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [countdown, setCountdown] = useState(30);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -742,7 +744,7 @@ export function DashboardOverview() {
         {/* Quick Actions */}
         <div className="lg:col-span-1 space-y-3">
           <h3 className="text-sm font-semibold uppercase text-muted-foreground tracking-wider">
-            Quick Actions
+            {t("dashboard.quickActions")}
           </h3>
           <div className="space-y-2">
             <QuickAction
@@ -782,7 +784,7 @@ export function DashboardOverview() {
         {/* Active Pipelines */}
         <div className="lg:col-span-1 space-y-3">
           <h3 className="text-sm font-semibold uppercase text-muted-foreground tracking-wider">
-            Active Pipelines
+            {t("dashboard.activePipelines")}
           </h3>
           {activePipelines.length === 0 ? (
             <Card className="p-6 text-center">
@@ -889,7 +891,7 @@ export function DashboardOverview() {
         {/* Activity Feed */}
         <div className="lg:col-span-1 space-y-3">
           <h3 className="text-sm font-semibold uppercase text-muted-foreground tracking-wider">
-            Activity Feed
+            {t("dashboard.activityFeed")}
           </h3>
           <Card className="p-3">
             <ActivityFeed />
@@ -984,7 +986,7 @@ export function DashboardOverview() {
       {/* Footer */}
       <div className="text-center text-xs text-muted-foreground pt-4 border-t border-border">
         <p>
-          Maestro Platform v0.4.0 &middot; AI-native PDLC &middot;{" "}
+          {t("app.version")} &middot; {t("app.description")} &middot;{" "}
           {backendConfig?.backend
             ? `${backendConfig.backend.charAt(0).toUpperCase() + backendConfig.backend.slice(1)} Engine`
             : "Loading..."}

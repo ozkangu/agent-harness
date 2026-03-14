@@ -204,3 +204,84 @@ export interface ApprovalRequest {
   status: "pending" | "approved" | "rejected";
   rejectionReason?: string;
 }
+
+// --- Per-Phase Backend Types ---
+export interface PhaseBackendOverride {
+  backend: string;
+  model: string;
+  binary?: string;
+  budget_usd?: number;
+  overridden: boolean;
+}
+
+export type PhaseBackendMap = Record<string, PhaseBackendOverride>;
+
+// --- MCP Types ---
+export interface MCPTool {
+  name: string;
+  description: string;
+  server_id?: number;
+  server_name?: string;
+}
+
+export interface MCPServer {
+  id: number;
+  name: string;
+  transport: string;
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+  enabled: boolean;
+  status: string;
+  tools: MCPTool[];
+  created_at: string;
+  updated_at: string;
+}
+
+// --- Auth/Security Types ---
+export type UserRole = "admin" | "engineer" | "viewer";
+
+export interface AuthUser {
+  id: number;
+  username: string;
+  email: string;
+  role: UserRole;
+  team: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AuditEntry {
+  id: number;
+  user_id: number | null;
+  username: string;
+  action: string;
+  resource_type: string;
+  resource_id: string;
+  result: string;
+  details: string;
+  ip_address: string;
+  user_agent: string;
+  timestamp: string;
+}
+
+export interface SecretEntry {
+  name: string;
+  description: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SecurityPolicy {
+  id: number;
+  name: string;
+  description: string;
+  rules: Record<string, unknown>;
+  scope: string;
+  scope_id: string;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}

@@ -12,6 +12,9 @@ import type {
   Toast,
   ApprovalRequest,
   IssueStatus,
+  PhaseBackendMap,
+  MCPServer,
+  AuthUser,
 } from "@/types";
 import {
   issuesApi,
@@ -19,6 +22,9 @@ import {
   conversationsApi,
   statsApi,
   configApi,
+  phaseBackendsApi,
+  mcpApi,
+  authApi,
 } from "@/lib/api";
 
 interface AppState {
@@ -28,6 +34,7 @@ interface AppState {
   sidebarCollapsed: boolean;
   theme: "dark" | "light";
   accentColor: string;
+  locale: "en" | "tr";
 
   // Data
   issues: Issue[];
@@ -36,6 +43,17 @@ interface AppState {
   stats: DashboardStats | null;
   backendConfig: BackendConfig | null;
   autoApprove: boolean;
+
+  // Phase backends
+  phaseBackends: PhaseBackendMap | null;
+
+  // MCP
+  mcpServers: MCPServer[];
+
+  // Auth
+  currentUser: AuthUser | null;
+  isAuthenticated: boolean;
+  authEnabled: boolean;
 
   // Active selections
   activePipelineId: number | null;
@@ -70,6 +88,7 @@ interface AppState {
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleTheme: () => void;
   setAccentColor: (color: string) => void;
+  setLocale: (locale: "en" | "tr") => void;
 
   // Data fetching
   fetchIssues: () => Promise<void>;
@@ -109,6 +128,23 @@ interface AppState {
   setAutoApprove: (value: boolean) => Promise<void>;
   setBackend: (backend: string, model?: string) => Promise<void>;
 
+  // Phase backend actions
+  fetchPhaseBackends: () => Promise<void>;
+  setPhaseBackend: (phase: string, backend: string, model?: string) => Promise<void>;
+  removePhaseBackend: (phase: string) => Promise<void>;
+
+  // MCP actions
+  fetchMcpServers: () => Promise<void>;
+  addMcpServer: (data: { name: string; transport: string; command: string; args?: string[] }) => Promise<void>;
+  removeMcpServer: (id: number) => Promise<void>;
+  toggleMcpServer: (id: number, enabled: boolean) => Promise<void>;
+
+  // Auth actions
+  login: (username: string, password: string) => Promise<boolean>;
+  logout: () => void;
+  fetchCurrentUser: () => Promise<void>;
+  checkAuth: () => Promise<void>;
+
   // WebSocket
   setWsStatus: (status: "connecting" | "connected" | "disconnected") => void;
 
@@ -147,6 +183,7 @@ export const useAppStore = create<AppState>()(
   sidebarCollapsed: false,
   theme: "dark",
   accentColor: "violet",
+  locale: "en",
 
   // Data defaults
   issues: [],
@@ -155,6 +192,17 @@ export const useAppStore = create<AppState>()(
   stats: null,
   backendConfig: null,
   autoApprove: true,
+
+  // Phase backends
+  phaseBackends: null,
+
+  // MCP
+  mcpServers: [],
+
+  // Auth
+  currentUser: null,
+  isAuthenticated: false,
+  authEnabled: false,
 
   // Active selections
   activePipelineId: null,
@@ -190,6 +238,7 @@ export const useAppStore = create<AppState>()(
   toggleTheme: () =>
     set((s) => ({ theme: s.theme === "dark" ? "light" : "dark" })),
   setAccentColor: (color) => set({ accentColor: color }),
+  setLocale: (locale) => set({ locale }),
 
   // Data fetching
   fetchIssues: async () => {
@@ -248,6 +297,8 @@ export const useAppStore = create<AppState>()(
       get().fetchConversations(),
       get().fetchStats(),
       get().fetchConfig(),
+      get().fetchPhaseBackends(),
+      get().fetchMcpServers(),
     ]);
     set({ loading: false });
   },
@@ -389,6 +440,122 @@ export const useAppStore = create<AppState>()(
   setBackend: async (backend, model) => {
     const config = await configApi.setBackend(backend, model);
     set({ backendConfig: { ...get().backendConfig!, ...config } });
+  },
+
+  // Phase backend actions
+  fetchPhaseBackends: async () => {
+    try {
+      const phaseBackends = await phaseBackendsApi.get() as unknown as PhaseBackendMap;
+      set({ phaseBackends });
+    } catch (e) {
+      console.error("Failed to fetch phase backends:", e);
+    }
+  },
+
+  setPhaseBackend: async (phase, backend, model) => {
+    try {
+      await phaseBackendsApi.set(phase, backend, model);
+      await get().fetchPhaseBackends();
+    } catch (e) {
+      console.error("Failed to set phase backend:", e);
+    }
+  },
+
+  removePhaseBackend: async (phase) => {
+    try {
+      await phaseBackendsApi.remove(phase);
+      await get().fetchPhaseBackends();
+    } catch (e) {
+      console.error("Failed to remove phase backend:", e);
+    }
+  },
+
+  // MCP actions
+  fetchMcpServers: async () => {
+    try {
+      const servers = await mcpApi.listServers() as unknown as MCPServer[];
+      set({ mcpServers: servers });
+    } catch (e) {
+      console.error("Failed to fetch MCP servers:", e);
+    }
+  },
+
+  addMcpServer: async (data) => {
+    try {
+      await mcpApi.addServer(data);
+      await get().fetchMcpServers();
+    } catch (e) {
+      console.error("Failed to add MCP server:", e);
+    }
+  },
+
+  removeMcpServer: async (id) => {
+    try {
+      await mcpApi.removeServer(id);
+      set((s) => ({ mcpServers: s.mcpServers.filter((s) => s.id !== id) }));
+    } catch (e) {
+      console.error("Failed to remove MCP server:", e);
+    }
+  },
+
+  toggleMcpServer: async (id, enabled) => {
+    try {
+      await mcpApi.toggleServer(id, enabled);
+      await get().fetchMcpServers();
+    } catch (e) {
+      console.error("Failed to toggle MCP server:", e);
+    }
+  },
+
+  // Auth actions
+  login: async (username, password) => {
+    try {
+      const result = await authApi.login(username, password);
+      if (result.token) {
+        localStorage.setItem("cortex_token", result.token);
+        set({ currentUser: result.user as unknown as AuthUser, isAuthenticated: true });
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error("Login failed:", e);
+      return false;
+    }
+  },
+
+  logout: () => {
+    localStorage.removeItem("cortex_token");
+    set({ currentUser: null, isAuthenticated: false });
+    authApi.logout().catch(() => {});
+  },
+
+  fetchCurrentUser: async () => {
+    try {
+      const user = await authApi.me();
+      set({ currentUser: user as unknown as AuthUser, isAuthenticated: true });
+    } catch {
+      set({ currentUser: null, isAuthenticated: false });
+    }
+  },
+
+  checkAuth: async () => {
+    try {
+      const health = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8420"}/api/health`
+      ).then((r) => r.json());
+      const authEnabled = health.auth_enabled || false;
+      set({ authEnabled });
+      if (authEnabled) {
+        const token = localStorage.getItem("cortex_token");
+        if (token) {
+          await get().fetchCurrentUser();
+        }
+      } else {
+        set({ isAuthenticated: true, currentUser: { id: 0, username: "anonymous", email: "", role: "admin", team: "", is_active: true, created_at: "", updated_at: "" } as AuthUser });
+      }
+    } catch {
+      set({ authEnabled: false, isAuthenticated: true });
+    }
   },
 
   // WebSocket
@@ -631,7 +798,7 @@ export const useAppStore = create<AppState>()(
   },
 }),
     {
-      name: "maestro-preferences",
+      name: "cortex-preferences",
       partialize: (state) => ({
         theme: state.theme,
         accentColor: state.accentColor,
@@ -640,6 +807,8 @@ export const useAppStore = create<AppState>()(
         activePanel: state.activePanel,
         autoApprove: state.autoApprove,
         approvalMode: state.approvalMode,
+        authEnabled: state.authEnabled,
+        locale: state.locale,
       }),
     }
   )

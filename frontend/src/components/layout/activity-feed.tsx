@@ -11,8 +11,8 @@ import {
   Zap,
   Clock,
 } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAppStore } from "@/stores/app-store";
+import { useVirtualList } from "@/hooks/use-virtual-list";
 import type { WSEventType } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -56,6 +56,13 @@ function timeAgo(timestamp: string): string {
 export function ActivityFeed() {
   const { activityFeed } = useAppStore();
 
+  const { parentRef, virtualItems, totalSize } = useVirtualList({
+    count: activityFeed.length,
+    estimateSize: () => 44,
+    overscan: 5,
+    enabled: activityFeed.length > 0,
+  });
+
   if (activityFeed.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -67,16 +74,25 @@ export function ActivityFeed() {
   }
 
   return (
-    <ScrollArea className="h-[320px]">
-      <div className="space-y-0.5">
-        {activityFeed.slice(0, 20).map((event) => {
+    <div ref={parentRef} className="h-[320px] overflow-auto">
+      <div
+        className="relative w-full"
+        style={{ height: `${totalSize}px` }}
+        aria-live="polite"
+      >
+        {virtualItems.map((virtualItem) => {
+          const event = activityFeed[virtualItem.index];
           const Icon = EVENT_ICONS[event.type] || Zap;
           const color = EVENT_COLORS[event.type] || "text-zinc-400";
 
           return (
             <div
               key={event.id}
-              className="flex items-start gap-2.5 px-1 py-2 rounded-md hover:bg-accent/30 transition-colors"
+              className="absolute top-0 left-0 w-full flex items-start gap-2.5 px-1 py-2 rounded-md hover:bg-accent/30 transition-colors"
+              style={{
+                height: `${virtualItem.size}px`,
+                transform: `translateY(${virtualItem.start}px)`,
+              }}
             >
               <div className={cn("mt-0.5 shrink-0", color)}>
                 <Icon className="h-3.5 w-3.5" />
@@ -96,6 +112,6 @@ export function ActivityFeed() {
           );
         })}
       </div>
-    </ScrollArea>
+    </div>
   );
 }

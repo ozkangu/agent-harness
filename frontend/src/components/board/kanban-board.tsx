@@ -65,6 +65,8 @@ import {
 import { useAppStore } from "@/stores/app-store";
 import { IssueDetail } from "@/components/board/issue-detail";
 import { MarkdownContent } from "@/components/ui/markdown-renderer";
+import { KanbanSkeleton } from "@/components/board/kanban-skeleton";
+import { useVirtualList } from "@/hooks/use-virtual-list";
 import type { Issue, IssueStatus, ApprovalRequest } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -152,7 +154,7 @@ function ApprovalBanner({ approval, onApprove, onReject }: {
   }
 
   return (
-    <div className="mt-2 -mx-3 -mb-3 px-3 py-2.5 bg-amber-500/10 border-t-2 border-amber-500/40 rounded-b-lg" onClick={(e) => e.stopPropagation()}>
+    <div role="alert" aria-live="assertive" className="mt-2 -mx-3 -mb-3 px-3 py-2.5 bg-amber-500/10 border-t-2 border-amber-500/40 rounded-b-lg" onClick={(e) => e.stopPropagation()}>
       <div className="flex items-center gap-1.5 mb-1.5">
         <ShieldCheck className="h-3.5 w-3.5 text-amber-500" />
         <span className="text-[10px] font-semibold text-amber-500 uppercase tracking-wider">Approval Required</span>
@@ -459,6 +461,126 @@ function IssueCard({
   );
 }
 
+function VirtualizedColumnCards({
+  issues,
+  colStatus,
+  dragOverColumn,
+  handleDragStart,
+  handleDragEnd,
+  setSelectedIssueKey,
+  selectMode,
+  selectedKeys,
+  toggleSelect,
+  compactCards,
+  pendingApprovals,
+  approveRequest,
+  rejectRequest,
+}: {
+  issues: Issue[];
+  colStatus: IssueStatus;
+  dragOverColumn: IssueStatus | null;
+  handleDragStart: (e: React.DragEvent, issue: Issue) => void;
+  handleDragEnd: (e: React.DragEvent) => void;
+  setSelectedIssueKey: (key: string) => void;
+  selectMode: boolean;
+  selectedKeys: Set<string>;
+  toggleSelect: (key: string) => void;
+  compactCards: boolean;
+  pendingApprovals: ApprovalRequest[];
+  approveRequest: (id: string) => void;
+  rejectRequest: (id: string, reason: string) => void;
+}) {
+  const useVirtual = issues.length > 20;
+  const { parentRef, virtualItems, totalSize } = useVirtualList({
+    count: issues.length,
+    estimateSize: () => (compactCards ? 100 : 140),
+    overscan: 5,
+    enabled: useVirtual,
+  });
+
+  if (issues.length === 0) {
+    return (
+      <div className="flex-1 px-2 pb-2 p-1">
+        <div
+          className={cn(
+            "text-center py-8 text-muted-foreground rounded-lg border-2 border-dashed border-transparent transition-colors",
+            dragOverColumn === colStatus && "border-primary/30"
+          )}
+        >
+          <p className="text-xs">
+            {dragOverColumn === colStatus ? "Drop here" : "No issues"}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (useVirtual) {
+    return (
+      <div ref={parentRef} className="flex-1 overflow-auto px-2 pb-2" onDragEnd={handleDragEnd}>
+        <div className="relative p-1" style={{ height: `${totalSize}px` }}>
+          {virtualItems.map((virtualItem) => {
+            const issue = issues[virtualItem.index];
+            const issueApproval = pendingApprovals.find(
+              (a) => a.issueKey === issue.key && (a.status === "pending" || a.status === "approved" || a.status === "rejected")
+            );
+            return (
+              <div
+                key={issue.key}
+                className="absolute top-0 left-0 w-full pb-2"
+                style={{
+                  height: `${virtualItem.size}px`,
+                  transform: `translateY(${virtualItem.start}px)`,
+                }}
+              >
+                <IssueCard
+                  issue={issue}
+                  onDragStart={handleDragStart}
+                  onClick={setSelectedIssueKey}
+                  selectMode={selectMode}
+                  selected={selectedKeys.has(issue.key)}
+                  onToggleSelect={toggleSelect}
+                  compact={compactCards}
+                  approval={issueApproval}
+                  onApprove={issueApproval ? () => approveRequest(issueApproval.id) : undefined}
+                  onReject={issueApproval ? (reason: string) => rejectRequest(issueApproval.id, reason) : undefined}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <ScrollArea className="flex-1 px-2 pb-2">
+      <div className="space-y-2 p-1" onDragEnd={handleDragEnd}>
+        {issues.map((issue) => {
+          const issueApproval = pendingApprovals.find(
+            (a) => a.issueKey === issue.key && (a.status === "pending" || a.status === "approved" || a.status === "rejected")
+          );
+          return (
+            <IssueCard
+              key={issue.key}
+              issue={issue}
+              onDragStart={handleDragStart}
+              onClick={setSelectedIssueKey}
+              selectMode={selectMode}
+              selected={selectedKeys.has(issue.key)}
+              onToggleSelect={toggleSelect}
+              compact={compactCards}
+              approval={issueApproval}
+              onApprove={issueApproval ? () => approveRequest(issueApproval.id) : undefined}
+              onReject={issueApproval ? (reason: string) => rejectRequest(issueApproval.id, reason) : undefined}
+            />
+          );
+        })}
+      </div>
+    </ScrollArea>
+  );
+}
+
 function CreateIssueDialog() {
   const { createIssue } = useAppStore();
   const [open, setOpen] = useState(false);
@@ -565,7 +687,9 @@ function CreateIssueDialog() {
 }
 
 export function KanbanBoard() {
-  const { issues, stats, updateIssue, deleteIssue, createIssue, addToast, approvalMode, setApprovalMode, pendingApprovals, approveRequest, rejectRequest, addApprovalRequest } = useAppStore();
+  const { issues, stats, updateIssue, deleteIssue, createIssue, addToast, approvalMode, setApprovalMode, pendingApprovals, approveRequest, rejectRequest, addApprovalRequest, loading } = useAppStore();
+
+  if (loading) return <KanbanSkeleton />;
   const [dragOverColumn, setDragOverColumn] = useState<IssueStatus | null>(null);
   const [selectedIssueKey, setSelectedIssueKey] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -779,7 +903,7 @@ export function KanbanBoard() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `maestro-issues-${new Date().toISOString().slice(0, 10)}.${ext}`;
+    a.download = `cortex-issues-${new Date().toISOString().slice(0, 10)}.${ext}`;
     a.click();
     URL.revokeObjectURL(url);
     addToast({ type: "success", title: "Exported", description: `${data.length} issues exported as ${ext.toUpperCase()}` });
@@ -903,6 +1027,7 @@ export function KanbanBoard() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search issues..."
+              aria-label="Search issues"
               className="w-full pl-8 pr-8 py-1.5 rounded-md border border-border bg-background text-xs outline-none focus:ring-1 focus:ring-primary/50"
             />
             {searchQuery && (
@@ -921,6 +1046,7 @@ export function KanbanBoard() {
               <button
                 key={p}
                 onClick={() => setPriorityFilter(priorityFilter === p ? null : p)}
+                aria-pressed={priorityFilter === p}
                 className={cn(
                   "text-[10px] px-2 py-1 rounded-md border transition-colors capitalize",
                   priorityFilter === p
@@ -1077,42 +1203,21 @@ export function KanbanBoard() {
               </div>
 
               {/* Column cards */}
-              <ScrollArea className="flex-1 px-2 pb-2">
-                <div className="space-y-2 p-1" onDragEnd={handleDragEnd}>
-                  {groupedIssues[col.status]?.map((issue) => {
-                    const issueApproval = pendingApprovals.find(
-                      (a) => a.issueKey === issue.key && (a.status === "pending" || a.status === "approved" || a.status === "rejected")
-                    );
-                    return (
-                      <IssueCard
-                        key={issue.key}
-                        issue={issue}
-                        onDragStart={handleDragStart}
-                        onClick={setSelectedIssueKey}
-                        selectMode={selectMode}
-                        selected={selectedKeys.has(issue.key)}
-                        onToggleSelect={toggleSelect}
-                        compact={compactCards}
-                        approval={issueApproval}
-                        onApprove={issueApproval ? () => approveRequest(issueApproval.id) : undefined}
-                        onReject={issueApproval ? (reason: string) => rejectRequest(issueApproval.id, reason) : undefined}
-                      />
-                    );
-                  })}
-                  {(groupedIssues[col.status]?.length || 0) === 0 && (
-                    <div
-                      className={cn(
-                        "text-center py-8 text-muted-foreground rounded-lg border-2 border-dashed border-transparent transition-colors",
-                        dragOverColumn === col.status && "border-primary/30"
-                      )}
-                    >
-                      <p className="text-xs">
-                        {dragOverColumn === col.status ? "Drop here" : "No issues"}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
+              <VirtualizedColumnCards
+                issues={groupedIssues[col.status] || []}
+                colStatus={col.status}
+                dragOverColumn={dragOverColumn}
+                handleDragStart={handleDragStart}
+                handleDragEnd={handleDragEnd}
+                setSelectedIssueKey={setSelectedIssueKey}
+                selectMode={selectMode}
+                selectedKeys={selectedKeys}
+                toggleSelect={toggleSelect}
+                compactCards={compactCards}
+                pendingApprovals={pendingApprovals}
+                approveRequest={approveRequest}
+                rejectRequest={rejectRequest}
+              />
             </div>
           ))}
         </div>

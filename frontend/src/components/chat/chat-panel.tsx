@@ -31,6 +31,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { MarkdownContent } from "@/components/ui/markdown-renderer";
 import { useAppStore } from "@/stores/app-store";
+import { ChatSkeleton } from "@/components/chat/chat-skeleton";
+import { useVirtualList } from "@/hooks/use-virtual-list";
+import { useTranslation } from "@/hooks/use-translation";
 import type { Message } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -202,6 +205,65 @@ function ChatMessage({
             ))}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function VirtualizedChatMessages({
+  messages,
+  messageReactions,
+  setInput,
+  setMessageReactions,
+}: {
+  messages: Message[];
+  messageReactions: Record<number, Record<string, number>>;
+  setInput: (v: string) => void;
+  setMessageReactions: React.Dispatch<React.SetStateAction<Record<number, Record<string, number>>>>;
+}) {
+  const useVirtual = messages.length > 50;
+  const { parentRef, virtualItems, totalSize } = useVirtualList({
+    count: messages.length,
+    estimateSize: () => 120,
+    overscan: 10,
+    enabled: useVirtual,
+  });
+
+  const renderMsg = (msg: Message) => (
+    <ChatMessage
+      key={msg.id}
+      message={msg}
+      onRetry={(content) => setInput(content)}
+      reactions={messageReactions[msg.id]}
+      onReact={(emoji) => {
+        setMessageReactions((prev) => {
+          const msgReactions = { ...(prev[msg.id] || {}) };
+          msgReactions[emoji] = (msgReactions[emoji] || 0) + 1;
+          return { ...prev, [msg.id]: msgReactions };
+        });
+      }}
+    />
+  );
+
+  if (!useVirtual) {
+    return <>{messages.map((msg) => renderMsg(msg))}</>;
+  }
+
+  return (
+    <div ref={parentRef} className="flex-1 overflow-auto">
+      <div className="relative w-full" style={{ height: `${totalSize}px` }}>
+        {virtualItems.map((virtualItem) => (
+          <div
+            key={messages[virtualItem.index].id}
+            className="absolute top-0 left-0 w-full"
+            style={{
+              height: `${virtualItem.size}px`,
+              transform: `translateY(${virtualItem.start}px)`,
+            }}
+          >
+            {renderMsg(messages[virtualItem.index])}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -397,8 +459,12 @@ export function ChatPanel() {
     selectConversation,
     setActivePanel,
     addToast,
+    loading,
   } = useAppStore();
 
+  if (loading) return <ChatSkeleton />;
+
+  const { t } = useTranslation();
   const [input, setInput] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [stagedFiles, setStagedFiles] = useState<{ name: string; size: number; content: string }[]>([]);
@@ -594,7 +660,7 @@ export function ChatPanel() {
               <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-indigo-600/20 flex items-center justify-center mb-4">
                 <Bot className="h-8 w-8 text-violet-400" />
               </div>
-              <h3 className="text-lg font-semibold mb-2">Maestro AI</h3>
+              <h3 className="text-lg font-semibold mb-2">{t("chat.title")}</h3>
               <p className="text-sm text-muted-foreground max-w-sm">
                 Describe what you want to build. I&apos;ll analyze your request,
                 create issues, generate code, and manage the entire development
@@ -624,7 +690,7 @@ export function ChatPanel() {
               <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center mb-4">
                 <Sparkles className="h-7 w-7 text-white" />
               </div>
-              <h3 className="text-lg font-semibold mb-1">How can I help?</h3>
+              <h3 className="text-lg font-semibold mb-1">{t("chat.howCanIHelp")}</h3>
               <p className="text-sm text-muted-foreground mb-6">
                 Start a conversation or try one of these prompts.
               </p>
@@ -651,21 +717,12 @@ export function ChatPanel() {
             </div>
           )}
 
-          {conversationMessages.map((msg) => (
-            <ChatMessage
-              key={msg.id}
-              message={msg}
-              onRetry={(content) => setInput(content)}
-              reactions={messageReactions[msg.id]}
-              onReact={(emoji) => {
-                setMessageReactions((prev) => {
-                  const msgReactions = { ...(prev[msg.id] || {}) };
-                  msgReactions[emoji] = (msgReactions[emoji] || 0) + 1;
-                  return { ...prev, [msg.id]: msgReactions };
-                });
-              }}
-            />
-          ))}
+          <VirtualizedChatMessages
+            messages={conversationMessages}
+            messageReactions={messageReactions}
+            setInput={setInput}
+            setMessageReactions={setMessageReactions}
+          />
 
           {chatLoading && <TypingIndicator />}
         </ScrollArea>
@@ -721,7 +778,8 @@ export function ChatPanel() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Describe what you want to build..."
+              placeholder={t("chat.inputPlaceholder")}
+              aria-label={t("chat.inputLabel")}
               className="min-h-[44px] max-h-32 resize-none"
               rows={1}
             />
@@ -730,6 +788,7 @@ export function ChatPanel() {
               disabled={(!input.trim() && stagedFiles.length === 0) || chatLoading}
               size="icon"
               className="shrink-0 h-11 w-11"
+              aria-label={t("chat.send")}
             >
               {chatLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

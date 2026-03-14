@@ -12,10 +12,27 @@ import type {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8420";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+
+  // Add auth token if present
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("cortex_token");
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+  }
+
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...options?.headers },
+    headers: { ...headers, ...options?.headers },
     ...options,
   });
+
+  // Handle auth errors
+  if (res.status === 401 && typeof window !== "undefined") {
+    localStorage.removeItem("cortex_token");
+    // Don't redirect here, let the auth guard handle it
+  }
+
   if (!res.ok) {
     const error = await res.text().catch(() => res.statusText);
     throw new Error(`API Error ${res.status}: ${error}`);
@@ -135,4 +152,106 @@ export const entropyApi = {
   scan: () => request<Record<string, unknown>>("/api/entropy/scan", { method: "POST" }),
   tasks: () => request<Record<string, unknown>[]>("/api/entropy/tasks"),
   findings: () => request<Record<string, unknown>[]>("/api/entropy/findings"),
+};
+
+// Phase Backends
+export const phaseBackendsApi = {
+  get: () => request<Record<string, unknown>>("/api/config/phase-backends"),
+  set: (phase: string, backend: string, model?: string) =>
+    request<Record<string, unknown>>("/api/config/phase-backends", {
+      method: "POST",
+      body: JSON.stringify({ phase, backend, model }),
+    }),
+  remove: (phase: string) =>
+    request<void>(`/api/config/phase-backends/${phase}`, { method: "DELETE" }),
+};
+
+// MCP
+export const mcpApi = {
+  serverStatus: () => request<{ enabled: boolean; status: string }>("/api/mcp/server/status"),
+  listServers: () => request<Record<string, unknown>[]>("/api/mcp/servers"),
+  addServer: (data: { name: string; transport: string; command: string; args?: string[]; env?: Record<string, string> }) =>
+    request<Record<string, unknown>>("/api/mcp/servers", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  getServer: (id: number) => request<Record<string, unknown>>(`/api/mcp/servers/${id}`),
+  removeServer: (id: number) => request<void>(`/api/mcp/servers/${id}`, { method: "DELETE" }),
+  toggleServer: (id: number, enabled: boolean) =>
+    request<Record<string, unknown>>(`/api/mcp/servers/${id}/toggle`, {
+      method: "POST",
+      body: JSON.stringify({ enabled }),
+    }),
+  reconnectServer: (id: number) =>
+    request<Record<string, unknown>>(`/api/mcp/servers/${id}/reconnect`, { method: "POST" }),
+  listTools: () => request<Record<string, unknown>[]>("/api/mcp/tools"),
+  callTool: (server_id: number, tool: string, args?: Record<string, unknown>) =>
+    request<Record<string, unknown>>("/api/mcp/tools/call", {
+      method: "POST",
+      body: JSON.stringify({ server_id, tool, arguments: args }),
+    }),
+};
+
+// Auth
+export const authApi = {
+  login: (username: string, password: string) =>
+    request<{ token: string; user: Record<string, unknown> }>("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+    }),
+  logout: () => request<void>("/api/auth/logout", { method: "POST" }),
+  me: () => request<Record<string, unknown>>("/api/auth/me"),
+  listUsers: () => request<Record<string, unknown>[]>("/api/auth/users"),
+  createUser: (data: { username: string; email: string; password: string; role: string; team?: string }) =>
+    request<Record<string, unknown>>("/api/auth/users", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  createApiKey: (user_id: number, name: string, expires_days?: number) =>
+    request<Record<string, unknown>>("/api/auth/api-keys", {
+      method: "POST",
+      body: JSON.stringify({ user_id, name, expires_days }),
+    }),
+};
+
+// Audit
+export const auditApi = {
+  query: (filters?: { action?: string; resource_type?: string; user_id?: number; since?: string; until?: string; limit?: number }) => {
+    const params = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([k, v]) => {
+        if (v !== undefined) params.set(k, String(v));
+      });
+    }
+    const qs = params.toString();
+    return request<Record<string, unknown>[]>(`/api/audit${qs ? `?${qs}` : ""}`);
+  },
+  exportCsv: () => `/api/audit/export`,
+};
+
+// Secrets
+export const secretsApi = {
+  list: () => request<Record<string, unknown>[]>("/api/secrets"),
+  set: (name: string, value: string, description?: string) =>
+    request<Record<string, unknown>>("/api/secrets", {
+      method: "POST",
+      body: JSON.stringify({ name, value, description }),
+    }),
+  delete: (name: string) => request<void>(`/api/secrets/${name}`, { method: "DELETE" }),
+};
+
+// Policies
+export const policiesApi = {
+  list: () => request<Record<string, unknown>[]>("/api/policies"),
+  create: (data: { name: string; description?: string; rules?: Record<string, unknown> }) =>
+    request<Record<string, unknown>>("/api/policies", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  update: (id: number, data: Record<string, unknown>) =>
+    request<Record<string, unknown>>(`/api/policies/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  delete: (id: number) => request<void>(`/api/policies/${id}`, { method: "DELETE" }),
 };

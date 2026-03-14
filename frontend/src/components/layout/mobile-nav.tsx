@@ -8,18 +8,20 @@ import {
   Settings,
 } from "lucide-react";
 import { useAppStore } from "@/stores/app-store";
+import { useTranslation } from "@/hooks/use-translation";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
-  { key: "dashboard" as const, label: "Home", icon: LayoutDashboard },
-  { key: "board" as const, label: "Board", icon: BarChart3 },
-  { key: "chat" as const, label: "Chat", icon: MessageSquare },
-  { key: "pipeline" as const, label: "Pipeline", icon: GitBranch },
-  { key: "settings" as const, label: "Settings", icon: Settings },
+  { key: "dashboard" as const, labelKey: "nav.home", icon: LayoutDashboard },
+  { key: "board" as const, labelKey: "nav.board", icon: BarChart3 },
+  { key: "chat" as const, labelKey: "nav.chat", icon: MessageSquare },
+  { key: "pipeline" as const, labelKey: "nav.pipeline", icon: GitBranch },
+  { key: "settings" as const, labelKey: "nav.settings", icon: Settings },
 ];
 
 export function MobileNav() {
   const { activePanel, setActivePanel, pipelines, issues, activityFeed } = useAppStore();
+  const { t } = useTranslation();
 
   const awaitingCount = pipelines.filter((p) => p.phase.startsWith("awaiting")).length;
   const failedCount = issues.filter((i) => i.status === "failed").length;
@@ -31,14 +33,16 @@ export function MobileNav() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 border-t border-border bg-card/95 backdrop-blur-sm z-50 md:hidden safe-area-bottom">
+    <nav aria-label={t("nav.mobileNav")} className="fixed bottom-0 left-0 right-0 border-t border-border bg-card/95 backdrop-blur-sm z-50 md:hidden safe-area-bottom">
       <div className="flex items-center justify-around">
-        {NAV_ITEMS.map(({ key, label, icon: Icon }) => {
+        {NAV_ITEMS.map(({ key, labelKey, icon: Icon }) => {
+          const label = t(labelKey);
           const badge = getBadge(key);
           return (
             <button
               key={key}
               onClick={() => setActivePanel(key)}
+              aria-current={activePanel === key ? "page" : undefined}
               className={cn(
                 "flex flex-col items-center gap-0.5 py-2.5 px-3 text-[10px] font-medium transition-colors min-w-0 flex-1 relative",
                 activePanel === key

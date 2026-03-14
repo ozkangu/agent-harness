@@ -17,7 +17,9 @@ from maestro.models import (
     Issue,
     MaestroConfig,
     OrchestratorConfig,
+    PipelinePhase,
 )
+from maestro.runner_pool import PhaseBackendOverride
 from dataclasses import replace
 
 logger = logging.getLogger(__name__)
@@ -130,10 +132,38 @@ def parse_workflow(content: str) -> MaestroConfig:
         hooks=hooks,
     )
 
+    # Parse optional phase_backends section
+    phase_backends: dict[PipelinePhase, PhaseBackendOverride] = {}
+    phase_backends_raw = raw.get("phase_backends", {}) or {}
+    for phase_key, phase_cfg in phase_backends_raw.items():
+        try:
+            phase = PipelinePhase(phase_key)
+        except ValueError:
+            logger.warning("Unknown phase in phase_backends: %s, skipping", phase_key)
+            continue
+        if not isinstance(phase_cfg, dict):
+            continue
+        pb_backend_str = phase_cfg.get("backend", backend_str)
+        try:
+            pb_backend = BackendType(pb_backend_str)
+        except ValueError:
+            logger.warning("Unknown backend in phase_backends.%s: %s", phase_key, pb_backend_str)
+            continue
+        pb_budget = phase_cfg.get("budget_usd")
+        phase_backends[phase] = PhaseBackendOverride(
+            phase=phase,
+            backend=pb_backend,
+            model=phase_cfg.get("model", ""),
+            binary=phase_cfg.get("binary", ""),
+            budget_usd=float(pb_budget) if pb_budget is not None else None,
+            extra_args=phase_cfg.get("extra_args", []),
+        )
+
     return MaestroConfig(
         copilot=copilot,
         orchestrator=orchestrator,
         prompt_template=body,
+        phase_backends=phase_backends,
     )
 
 
@@ -185,4 +215,23 @@ class WorkflowLoader:
             model=model,
         )
         self._config = replace(cfg, copilot=new_copilot)
+        return self._config
+
+    def set_phase_backend(
+        self, phase: PipelinePhase, backend: BackendType, model: str = ""
+    ) -> MaestroConfig:
+        """Set a per-phase backend override in-memory."""
+        cfg = self.load()
+        override = PhaseBackendOverride(phase=phase, backend=backend, model=model)
+        new_phase_backends = dict(cfg.phase_backends)
+        new_phase_backends[phase] = override
+        self._config = replace(cfg, phase_backends=new_phase_backends)
+        return self._config
+
+    def remove_phase_backend(self, phase: PipelinePhase) -> MaestroConfig:
+        """Remove a per-phase backend override."""
+        cfg = self.load()
+        new_phase_backends = dict(cfg.phase_backends)
+        new_phase_backends.pop(phase, None)
+        self._config = replace(cfg, phase_backends=new_phase_backends)
         return self._config

@@ -20,7 +20,14 @@ export function useWebSocket(onEvent: EventHandler): WSStatus {
     setStatus("connecting");
 
     try {
-      const ws = new WebSocket(WS_URL);
+      let url = WS_URL;
+      if (typeof window !== "undefined") {
+        const token = localStorage.getItem("cortex_token");
+        if (token) {
+          url += `${url.includes("?") ? "&" : "?"}token=${token}`;
+        }
+      }
+      const ws = new WebSocket(url);
 
       ws.onopen = () => {
         console.log("[WS] Connected");

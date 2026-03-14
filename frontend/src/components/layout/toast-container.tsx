@@ -79,7 +79,7 @@ export function ToastContainer() {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-20 right-4 md:bottom-4 md:right-4 z-[100] flex flex-col gap-2 w-80 max-w-[calc(100vw-2rem)]">
+    <div role="status" aria-live="polite" className="fixed bottom-20 right-4 md:bottom-4 md:right-4 z-[100] flex flex-col gap-2 w-80 max-w-[calc(100vw-2rem)]">
       {toasts.map((toast) => (
         <ToastItem
           key={toast.id}

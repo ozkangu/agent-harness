@@ -16,6 +16,7 @@ from maestro.models import (
     PipelinePhase,
 )
 from maestro.runner import BaseRunner
+from maestro.runner_pool import RunnerPool
 
 logger = logging.getLogger(__name__)
 
@@ -47,14 +48,17 @@ class ConversationManager:
         self,
         chat_store: ChatStore,
         board: Board,
-        runner: BaseRunner,
+        runner: BaseRunner | RunnerPool,
         context_engine=None,
         pipeline_manager=None,
         notify: Callable[[str, dict], Awaitable[None]] | None = None,
     ) -> None:
         self.chat_store = chat_store
         self.board = board
-        self.runner = runner
+        if isinstance(runner, RunnerPool):
+            self.runner = runner.default_runner
+        else:
+            self.runner = runner
         self.context_engine = context_engine
         self.pipeline_manager = pipeline_manager
         self._notify = notify or _noop_notify

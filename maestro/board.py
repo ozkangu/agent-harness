@@ -85,6 +85,12 @@ class Board:
                 "context_snapshot": "TEXT",
             },
         )
+        await self._ensure_columns(
+            "pipelines",
+            {
+                "backend_config_json": "TEXT",
+            },
+        )
 
     async def _ensure_columns(self, table: str, columns: dict[str, str]) -> None:
         async with self.db.execute(f"PRAGMA table_info({table})") as cursor:  # noqa: S608

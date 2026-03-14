@@ -44,10 +44,12 @@ class ContextEngine:
         chat_store: ChatStore,
         repo_dir: str | Path | None = None,
         db=None,
+        mcp_client=None,
     ) -> None:
         self.chat_store = chat_store
         self.repo_dir = Path(repo_dir) if repo_dir else None
         self.db = db
+        self.mcp_client = mcp_client
         self._cache: dict[str, str] = {}
 
     async def build_context(
@@ -82,6 +84,21 @@ class ContextEngine:
             feedback = await self._build_failure_feedback(issue)
             if feedback:
                 sections.append("## Previous Failure Analysis\n" + feedback)
+
+        # MCP tools section
+        if self.mcp_client:
+            try:
+                tools = await self.mcp_client.get_all_tools()
+                if tools:
+                    tool_lines = ["## Available MCP Tools"]
+                    for tool in tools:
+                        name = tool.get("name", "unknown")
+                        desc = tool.get("description", "")
+                        server = tool.get("server_name", "")
+                        tool_lines.append(f"- **{name}** ({server}): {desc}")
+                    sections.append("\n".join(tool_lines))
+            except Exception:
+                logger.debug("Failed to load MCP tools for context")
 
         return "\n\n".join(sections)
 

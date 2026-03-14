@@ -85,6 +85,7 @@ class BaseRunner(abc.ABC):
         turn_timeout: int = 3600,
         env_extra: dict[str, str] | None = None,
         on_output: Callable[[dict], Awaitable[None]] | None = None,
+        secret_values: list[str] | None = None,
     ) -> RunResult:
         """Execute the CLI and stream JSONL output."""
         args = self.build_args(prompt, session_id=session_id, workdir=workdir)
@@ -93,6 +94,9 @@ class BaseRunner(abc.ABC):
         env = os.environ.copy()
         if env_extra:
             env.update(env_extra)
+
+        # Build secret filter for output sanitization
+        _secrets_to_filter = [v for v in (secret_values or []) if len(v) >= 4]
 
         result = RunResult(success=False)
         raw_lines: list[str] = []
@@ -134,10 +138,18 @@ class BaseRunner(abc.ABC):
                         parsed = {"type": "raw", "content": line}
                         result.output_lines.append(parsed)
 
-                    # Stream callback for real-time UI
+                    # Stream callback for real-time UI (filter secrets)
                     if on_output is not None:
                         try:
-                            await on_output(parsed)
+                            filtered = parsed
+                            if _secrets_to_filter:
+                                import copy
+                                filtered = copy.deepcopy(parsed)
+                                for key in ("content", "result", "message"):
+                                    if key in filtered and isinstance(filtered[key], str):
+                                        for sv in _secrets_to_filter:
+                                            filtered[key] = filtered[key].replace(sv, "***")
+                            await on_output(filtered)
                         except Exception:
                             logger.debug("on_output callback error", exc_info=True)
 

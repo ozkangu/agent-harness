@@ -10,6 +10,7 @@ from maestro.board import Board
 from maestro.chat import ChatStore
 from maestro.models import Issue, MessageRole, PipelinePhase
 from maestro.runner import BaseRunner
+from maestro.runner_pool import RunnerPool
 
 logger = logging.getLogger(__name__)
 
@@ -315,17 +316,37 @@ class PlannerAgent:
 
     def __init__(
         self,
-        runner: BaseRunner,
+        runner: BaseRunner | RunnerPool,
         board: Board,
         chat_store: ChatStore,
         workdir: str | None = None,
         on_output=None,
     ) -> None:
-        self.runner = runner
+        if isinstance(runner, RunnerPool):
+            self._runner_pool: RunnerPool | None = runner
+            self._runner: BaseRunner = runner.default_runner
+        else:
+            self._runner_pool = None
+            self._runner = runner
         self.board = board
         self.chat_store = chat_store
         self.workdir = workdir
         self.on_output = on_output
+
+    @property
+    def runner(self) -> BaseRunner:
+        """Backward-compatible: return default runner."""
+        return self._runner
+
+    @runner.setter
+    def runner(self, value: BaseRunner) -> None:
+        self._runner = value
+
+    def _get_runner(self, phase: PipelinePhase) -> BaseRunner:
+        """Get the runner for a specific phase, falling back to default."""
+        if self._runner_pool is not None:
+            return self._runner_pool.get_runner_for_phase(phase)
+        return self._runner
 
     async def generate_clarifications(self, pipeline_id: int) -> dict:
         """Determine whether more clarification is needed before analysis."""
@@ -345,7 +366,7 @@ class PlannerAgent:
             clarification_answers=answers,
         )
 
-        result = await self.runner.run(
+        result = await self._get_runner(PipelinePhase.CLARIFICATION).run(
             prompt=prompt,
             workdir=self.workdir,
             on_output=self.on_output,
@@ -401,7 +422,7 @@ class PlannerAgent:
             ),
         )
 
-        result = await self.runner.run(
+        result = await self._get_runner(PipelinePhase.ANALYSIS_DOCUMENT).run(
             prompt=prompt,
             workdir=self.workdir,
             on_output=self.on_output,
@@ -449,7 +470,7 @@ class PlannerAgent:
             PipelinePhase.REPO_CONTEXT,
         )
 
-        result = await self.runner.run(
+        result = await self._get_runner(PipelinePhase.REPO_CONTEXT).run(
             prompt=REPO_ANALYSIS_PROMPT,
             workdir=self.workdir,
             on_output=self.on_output,
@@ -491,7 +512,7 @@ class PlannerAgent:
             analysis_doc=pipeline.analysis_doc or "No analysis document available.",
         )
 
-        result = await self.runner.run(
+        result = await self._get_runner(PipelinePhase.BA_ANALYSIS).run(
             prompt=prompt,
             workdir=self.workdir,
             on_output=self.on_output,
@@ -598,7 +619,7 @@ class PlannerAgent:
             stories=pipeline.stories_json or "[]",
         )
 
-        result = await self.runner.run(prompt=prompt, workdir=self.workdir, on_output=self.on_output)
+        result = await self._get_runner(PipelinePhase.BA_ANALYSIS).run(prompt=prompt, workdir=self.workdir, on_output=self.on_output)
 
         if not result.success:
             return {"verdict": "FAIL", "score": 0,
@@ -637,7 +658,7 @@ class PlannerAgent:
             stories=pipeline.stories_json or "No stories available.",
         )
 
-        result = await self.runner.run(
+        result = await self._get_runner(PipelinePhase.CODE_REVIEW).run(
             prompt=prompt,
             workdir=self.workdir,
             on_output=self.on_output,
@@ -686,7 +707,7 @@ class PlannerAgent:
             stories=pipeline.stories_json or "No stories available.",
         )
 
-        result = await self.runner.run(
+        result = await self._get_runner(PipelinePhase.TEST_VALIDATION).run(
             prompt=prompt,
             workdir=self.workdir,
             on_output=self.on_output,

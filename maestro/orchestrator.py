@@ -10,8 +10,9 @@ from dataclasses import dataclass, field
 
 from maestro.board import Board
 from maestro.config import WorkflowLoader, render_prompt
-from maestro.models import Issue, IssueStatus, MaestroConfig
+from maestro.models import Issue, IssueStatus, MaestroConfig, PipelinePhase
 from maestro.runner import RunResult, create_runner
+from maestro.runner_pool import RunnerPool
 from maestro.workspace import Workspace
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,7 @@ class Orchestrator:
         notify: Callable[[str, dict], Awaitable[None]] | None = None,
         quality_gate=None,
         context_engine=None,
+        runner_pool: RunnerPool | None = None,
     ) -> None:
         self.board = board
         self.workflow_loader = workflow_loader
@@ -45,6 +47,7 @@ class Orchestrator:
         self._notify = notify or _noop_notify
         self._quality_gate = quality_gate
         self._context_engine = context_engine
+        self._runner_pool = runner_pool
         self._active_runs: dict[str, ActiveRun] = {}
         self._shutdown = False
         self._poll_interval = 10.0  # seconds
@@ -239,8 +242,11 @@ class Orchestrator:
             # Render prompt with context
             prompt = render_prompt(cfg, issue, context=context)
 
-            # Run Copilot
-            runner = create_runner(cfg.copilot)
+            # Run agent - use runner pool if available, else create from config
+            if self._runner_pool:
+                runner = self._runner_pool.get_runner_for_phase(PipelinePhase.CODING)
+            else:
+                runner = create_runner(cfg.copilot)
             result = await runner.run(
                 prompt=prompt,
                 session_id=issue.session_id,

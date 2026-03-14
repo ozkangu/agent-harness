@@ -16,9 +16,10 @@ from pydantic import BaseModel
 from maestro.board import Board
 from maestro.chat import ChatStore
 from maestro.config import WorkflowLoader
-from maestro.models import BackendType, IssueStatus
+from maestro.models import BackendType, IssueStatus, PipelinePhase
 from maestro.pipeline import PipelineManager
 from maestro.conversation import ConversationManager
+from maestro.runner_pool import RunnerPool, PhaseBackendOverride
 
 NotifyCallback = Callable[[str, dict], Awaitable[None]]
 
@@ -91,6 +92,13 @@ def create_app(
     entropy_manager=None,
     workflow_loader: WorkflowLoader | None = None,
     on_backend_changed: OnBackendChanged | None = None,
+    runner_pool: RunnerPool | None = None,
+    mcp_client=None,
+    mcp_server=None,
+    auth_manager=None,
+    audit_logger=None,
+    secret_manager=None,
+    policy_engine=None,
 ) -> tuple[FastAPI, NotifyCallback]:
     """Create the FastAPI application."""
     app = FastAPI(title="Maestro", version="0.1.0")
@@ -103,6 +111,16 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Auth and rate limit middleware
+    if auth_manager and auth_manager.enabled:
+        from maestro.middleware import AuthMiddleware, RateLimitMiddleware
+        app.add_middleware(RateLimitMiddleware, requests_per_minute=120)
+        app.add_middleware(AuthMiddleware, auth_manager=auth_manager)
+    elif auth_manager:
+        # Even when disabled, add middleware to set anonymous user
+        from maestro.middleware import AuthMiddleware
+        app.add_middleware(AuthMiddleware, auth_manager=auth_manager)
 
     ws_manager = ConnectionManager()
 
@@ -118,13 +136,19 @@ def create_app(
         """Health check endpoint for monitoring and frontend connectivity."""
         return {
             "status": "ok",
-            "version": "0.2.0",
+            "version": "0.3.0",
+            "auth_enabled": auth_manager.enabled if auth_manager else False,
             "services": {
                 "board": board is not None,
                 "pipeline": pipeline_manager is not None,
                 "chat": chat_store is not None,
                 "context": context_engine is not None,
                 "quality": quality_gate is not None,
+                "mcp": mcp_client is not None,
+                "auth": auth_manager is not None and auth_manager.enabled,
+                "audit": audit_logger is not None,
+                "secrets": secret_manager is not None,
+                "policies": policy_engine is not None,
             },
         }
 
@@ -494,10 +518,395 @@ def create_app(
         findings = [t.to_dict() for t in tasks if t.findings]
         return findings
 
+    # --- Per-Phase Backend endpoints ---
+
+    @app.get("/api/config/phase-backends")
+    async def get_phase_backends():
+        if runner_pool is None:
+            return {}
+        return runner_pool.get_phase_map()
+
+    @app.post("/api/config/phase-backends")
+    async def set_phase_backend(req: dict):
+        if runner_pool is None:
+            raise HTTPException(501, "Runner pool not configured")
+        phase_str = req.get("phase", "")
+        backend_str = req.get("backend", "")
+        model_str = req.get("model", "")
+        try:
+            phase = PipelinePhase(phase_str)
+        except ValueError:
+            raise HTTPException(400, f"Invalid phase: {phase_str}")
+        try:
+            backend = BackendType(backend_str)
+        except ValueError:
+            raise HTTPException(400, f"Invalid backend: {backend_str}")
+        override = PhaseBackendOverride(phase=phase, backend=backend, model=model_str)
+        runner_pool.set_phase_override(override)
+        if audit_logger:
+            user = getattr(getattr(req, "state", None), "user", None)
+            await audit_logger.log(
+                action="phase_backend_set",
+                resource_type="config",
+                resource_id=phase_str,
+                details=f"backend={backend_str}, model={model_str}",
+                username=getattr(user, "username", ""),
+            )
+        return runner_pool.get_phase_map()
+
+    @app.delete("/api/config/phase-backends/{phase}")
+    async def remove_phase_backend(phase: str):
+        if runner_pool is None:
+            raise HTTPException(501, "Runner pool not configured")
+        try:
+            p = PipelinePhase(phase)
+        except ValueError:
+            raise HTTPException(400, f"Invalid phase: {phase}")
+        runner_pool.remove_phase_override(p)
+        return runner_pool.get_phase_map()
+
+    @app.get("/api/pipelines/{pipeline_id}/active-backend")
+    async def get_pipeline_active_backend(pipeline_id: int):
+        if chat_store is None or runner_pool is None:
+            raise HTTPException(501, "Not configured")
+        pipeline = await chat_store.get_pipeline(pipeline_id)
+        if pipeline is None:
+            raise HTTPException(404, f"Pipeline {pipeline_id} not found")
+        config = runner_pool.get_config_for_phase(pipeline.phase)
+        return {
+            "phase": pipeline.phase.value,
+            "backend": config.backend.value,
+            "model": config.model,
+        }
+
+    # --- MCP endpoints ---
+
+    @app.get("/api/mcp/server/status")
+    async def get_mcp_server_status():
+        return {
+            "enabled": mcp_server is not None,
+            "status": "running" if mcp_server else "disabled",
+        }
+
+    @app.get("/api/mcp/servers")
+    async def list_mcp_servers():
+        if mcp_client is None:
+            return []
+        servers = await mcp_client.list_servers()
+        return [s.to_dict() for s in servers]
+
+    @app.post("/api/mcp/servers", status_code=201)
+    async def add_mcp_server(req: dict):
+        if mcp_client is None:
+            raise HTTPException(501, "MCP client not configured")
+        name = req.get("name", "")
+        transport = req.get("transport", "stdio")
+        command = req.get("command", "")
+        args = req.get("args", [])
+        env = req.get("env", {})
+        if not name or not command:
+            raise HTTPException(400, "name and command are required")
+        server = await mcp_client.add_server(name, transport, command, args, env)
+        if audit_logger:
+            await audit_logger.log(
+                action="mcp_server_added",
+                resource_type="mcp_server",
+                resource_id=str(server.id),
+                details=f"name={name}, transport={transport}",
+            )
+        return server.to_dict()
+
+    @app.get("/api/mcp/servers/{server_id}")
+    async def get_mcp_server(server_id: int):
+        if mcp_client is None:
+            raise HTTPException(501, "MCP client not configured")
+        server = await mcp_client.get_server(server_id)
+        if server is None:
+            raise HTTPException(404, f"MCP server {server_id} not found")
+        return server.to_dict()
+
+    @app.delete("/api/mcp/servers/{server_id}", status_code=204)
+    async def remove_mcp_server(server_id: int):
+        if mcp_client is None:
+            raise HTTPException(501, "MCP client not configured")
+        await mcp_client.remove_server(server_id)
+        if audit_logger:
+            await audit_logger.log(
+                action="mcp_server_removed",
+                resource_type="mcp_server",
+                resource_id=str(server_id),
+            )
+
+    @app.post("/api/mcp/servers/{server_id}/toggle")
+    async def toggle_mcp_server(server_id: int, req: dict):
+        if mcp_client is None:
+            raise HTTPException(501, "MCP client not configured")
+        enabled = req.get("enabled", True)
+        server = await mcp_client.toggle_server(server_id, enabled)
+        return server.to_dict()
+
+    @app.post("/api/mcp/servers/{server_id}/reconnect")
+    async def reconnect_mcp_server(server_id: int):
+        if mcp_client is None:
+            raise HTTPException(501, "MCP client not configured")
+        await mcp_client._disconnect(server_id)
+        await mcp_client._connect(server_id)
+        server = await mcp_client.get_server(server_id)
+        return server.to_dict() if server else {"error": "Server not found"}
+
+    @app.get("/api/mcp/tools")
+    async def list_mcp_tools():
+        if mcp_client is None:
+            return []
+        return await mcp_client.get_all_tools()
+
+    @app.post("/api/mcp/tools/call")
+    async def call_mcp_tool(req: dict):
+        if mcp_client is None:
+            raise HTTPException(501, "MCP client not configured")
+        server_id = req.get("server_id")
+        tool = req.get("tool", "")
+        arguments = req.get("arguments", {})
+        if server_id is None or not tool:
+            raise HTTPException(400, "server_id and tool are required")
+        result = await mcp_client.call_tool(server_id, tool, arguments)
+        return result
+
+    # --- Auth endpoints ---
+
+    @app.post("/api/auth/login")
+    async def auth_login(req: dict):
+        if auth_manager is None or not auth_manager.enabled:
+            return {"token": "", "user": {"username": "anonymous", "role": "admin"}}
+        username = req.get("username", "")
+        password = req.get("password", "")
+        result = await auth_manager.authenticate(username, password)
+        if result is None:
+            if audit_logger:
+                await audit_logger.log(
+                    action="login_failed",
+                    resource_type="auth",
+                    details=f"username={username}",
+                    result="failure",
+                )
+            raise HTTPException(401, "Invalid credentials")
+        user, token = result
+        if audit_logger:
+            await audit_logger.log(
+                action="login",
+                resource_type="auth",
+                user_id=user.id,
+                username=user.username,
+            )
+        return {"token": token, "user": user.to_dict()}
+
+    @app.post("/api/auth/logout")
+    async def auth_logout():
+        return {"status": "ok"}
+
+    @app.get("/api/auth/me")
+    async def auth_me(request=None):
+        from starlette.requests import Request
+        if isinstance(request, Request) and hasattr(request.state, "user") and request.state.user:
+            return request.state.user.to_dict() if hasattr(request.state.user, "to_dict") else {
+                "username": "anonymous", "role": "admin"
+            }
+        return {"username": "anonymous", "role": "admin"}
+
+    @app.get("/api/auth/users")
+    async def list_users():
+        if auth_manager is None:
+            return []
+        users = await auth_manager.list_users()
+        return [u.to_dict() for u in users]
+
+    @app.post("/api/auth/users", status_code=201)
+    async def create_user(req: dict):
+        if auth_manager is None:
+            raise HTTPException(501, "Auth not configured")
+        from maestro.auth import Role
+        username = req.get("username", "")
+        email = req.get("email", "")
+        password = req.get("password", "")
+        role_str = req.get("role", "engineer")
+        team = req.get("team", "")
+        if not username or not email or not password:
+            raise HTTPException(400, "username, email, and password are required")
+        try:
+            role = Role(role_str)
+        except ValueError:
+            raise HTTPException(400, f"Invalid role: {role_str}")
+        user = await auth_manager.create_user(username, email, password, role, team)
+        if audit_logger:
+            await audit_logger.log(
+                action="user_created",
+                resource_type="user",
+                resource_id=str(user.id),
+                details=f"username={username}, role={role_str}",
+            )
+        return user.to_dict()
+
+    @app.post("/api/auth/api-keys", status_code=201)
+    async def create_api_key(req: dict):
+        if auth_manager is None:
+            raise HTTPException(501, "Auth not configured")
+        user_id = req.get("user_id")
+        name = req.get("name", "")
+        expires_days = req.get("expires_days")
+        if user_id is None or not name:
+            raise HTTPException(400, "user_id and name are required")
+        raw_key, api_key = await auth_manager.create_api_key(user_id, name, expires_days)
+        return {"key": raw_key, **api_key.to_dict()}
+
+    # --- Audit endpoints ---
+
+    @app.get("/api/audit")
+    async def query_audit(
+        action: str | None = None,
+        resource_type: str | None = None,
+        user_id: int | None = None,
+        since: str | None = None,
+        until: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ):
+        if audit_logger is None:
+            return []
+        entries = await audit_logger.query(
+            action=action,
+            resource_type=resource_type,
+            user_id=user_id,
+            since=since,
+            until=until,
+            limit=limit,
+            offset=offset,
+        )
+        return [e.to_dict() for e in entries]
+
+    @app.get("/api/audit/export")
+    async def export_audit(
+        action: str | None = None,
+        resource_type: str | None = None,
+        user_id: int | None = None,
+        since: str | None = None,
+        until: str | None = None,
+        limit: int = 1000,
+    ):
+        if audit_logger is None:
+            raise HTTPException(501, "Audit logger not configured")
+        from starlette.responses import Response
+        csv_data = await audit_logger.export_csv(
+            action=action,
+            resource_type=resource_type,
+            user_id=user_id,
+            since=since,
+            until=until,
+            limit=limit,
+        )
+        return Response(
+            content=csv_data,
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=audit_log.csv"},
+        )
+
+    # --- Secrets endpoints ---
+
+    @app.get("/api/secrets")
+    async def list_secrets():
+        if secret_manager is None:
+            return []
+        return await secret_manager.list_secrets()
+
+    @app.post("/api/secrets", status_code=201)
+    async def set_secret(req: dict):
+        if secret_manager is None:
+            raise HTTPException(501, "Secret manager not configured")
+        name = req.get("name", "")
+        value = req.get("value", "")
+        description = req.get("description", "")
+        if not name or not value:
+            raise HTTPException(400, "name and value are required")
+        await secret_manager.set_secret(name, value, description)
+        if audit_logger:
+            await audit_logger.log(
+                action="secret_set",
+                resource_type="secret",
+                resource_id=name,
+            )
+        return {"name": name, "description": description}
+
+    @app.delete("/api/secrets/{name}", status_code=204)
+    async def delete_secret(name: str):
+        if secret_manager is None:
+            raise HTTPException(501, "Secret manager not configured")
+        await secret_manager.delete_secret(name)
+        if audit_logger:
+            await audit_logger.log(
+                action="secret_deleted",
+                resource_type="secret",
+                resource_id=name,
+            )
+
+    # --- Policy endpoints ---
+
+    @app.get("/api/policies")
+    async def list_policies():
+        if policy_engine is None:
+            return []
+        policies = await policy_engine.list_policies()
+        return [p.to_dict() for p in policies]
+
+    @app.post("/api/policies", status_code=201)
+    async def create_policy(req: dict):
+        if policy_engine is None:
+            raise HTTPException(501, "Policy engine not configured")
+        name = req.get("name", "")
+        if not name:
+            raise HTTPException(400, "name is required")
+        policy = await policy_engine.create_policy(
+            name=name,
+            description=req.get("description", ""),
+            rules=req.get("rules", {}),
+            scope=req.get("scope", "global"),
+            scope_id=req.get("scope_id", ""),
+        )
+        return policy.to_dict()
+
+    @app.put("/api/policies/{policy_id}")
+    async def update_policy(policy_id: int, req: dict):
+        if policy_engine is None:
+            raise HTTPException(501, "Policy engine not configured")
+        policy = await policy_engine.update_policy(policy_id, **req)
+        return policy.to_dict()
+
+    @app.delete("/api/policies/{policy_id}", status_code=204)
+    async def delete_policy(policy_id: int):
+        if policy_engine is None:
+            raise HTTPException(501, "Policy engine not configured")
+        await policy_engine.delete_policy(policy_id)
+
+    # --- Budget endpoint ---
+
+    @app.get("/api/budget")
+    async def get_budget(scope: str = "global", scope_id: str = ""):
+        if policy_engine is None:
+            return {"within_budget": True}
+        return await policy_engine.check_budget(scope, scope_id, 0)
+
     # --- WebSocket ---
 
     @app.websocket("/ws")
     async def websocket_endpoint(websocket: WebSocket):
+        # Validate auth token from query param when auth enabled
+        if auth_manager and auth_manager.enabled:
+            token = websocket.query_params.get("token", "")
+            if token:
+                user = await auth_manager.verify_token(token)
+                if not user:
+                    await websocket.close(code=4001)
+                    return
+            # Allow unauthenticated WS if no token (backward compat)
+
         await ws_manager.connect(websocket)
         try:
             while True:

@@ -21,6 +21,8 @@ import { ErrorBoundary } from "@/components/layout/error-boundary";
 import { RunnerTerminal } from "@/components/layout/runner-terminal";
 import { OnboardingTour } from "@/components/layout/onboarding-tour";
 import { KeyboardShortcuts } from "@/components/layout/keyboard-shortcuts";
+import { LocaleProvider } from "@/components/layout/locale-provider";
+import { AuthGuard } from "@/components/auth/auth-guard";
 import type { WSEvent, Issue, Message, PipelinePhase } from "@/types";
 
 export default function Dashboard() {
@@ -119,21 +121,23 @@ export default function Dashboard() {
   const renderActivePanel = () => {
     switch (activePanel) {
       case "dashboard":
-        return <DashboardOverview />;
+        return <ErrorBoundary panelName="Dashboard"><DashboardOverview /></ErrorBoundary>;
       case "board":
-        return <KanbanBoard />;
+        return <ErrorBoundary panelName="Kanban Board"><KanbanBoard /></ErrorBoundary>;
       case "chat":
-        return <ChatPanel />;
+        return <ErrorBoundary panelName="Chat"><ChatPanel /></ErrorBoundary>;
       case "pipeline":
-        return <PipelineView />;
+        return <ErrorBoundary panelName="Pipeline"><PipelineView /></ErrorBoundary>;
       case "settings":
-        return <SettingsPanel />;
+        return <ErrorBoundary panelName="Settings"><SettingsPanel /></ErrorBoundary>;
       default:
-        return <DashboardOverview />;
+        return <ErrorBoundary panelName="Dashboard"><DashboardOverview /></ErrorBoundary>;
     }
   };
 
   return (
+    <AuthGuard>
+    <LocaleProvider>
     <ConnectionStatus>
       <ThemeSync />
       <div className="h-screen flex flex-col">
@@ -141,10 +145,8 @@ export default function Dashboard() {
         <Breadcrumb />
         <div className="flex flex-1 min-h-0">
           <Sidebar />
-          <main className="flex-1 min-w-0 overflow-hidden pb-16 md:pb-0">
-            <ErrorBoundary>
-              {renderActivePanel()}
-            </ErrorBoundary>
+          <main id="main-content" className="flex-1 min-w-0 overflow-hidden pb-16 md:pb-0">
+            {renderActivePanel()}
           </main>
         </div>
         <MobileNav />
@@ -155,5 +157,7 @@ export default function Dashboard() {
         <KeyboardShortcuts />
       </div>
     </ConnectionStatus>
+    </LocaleProvider>
+    </AuthGuard>
   );
 }

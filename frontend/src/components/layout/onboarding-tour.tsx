@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/hooks/use-translation";
 
 interface TourStep {
   title: string;
@@ -24,9 +25,9 @@ interface TourStep {
 
 const TOUR_STEPS: TourStep[] = [
   {
-    title: "Welcome to Maestro",
+    title: "Welcome to Cortex",
     description:
-      "Maestro is an AI-powered SDLC orchestrator that automates your entire development workflow. Let's take a quick tour of the key features.",
+      "Cortex is an AI-powered SDLC orchestrator that automates your entire development workflow. Let's take a quick tour of the key features.",
     icon: <Bot className="h-8 w-8 text-violet-400" />,
     position: "center",
   },
@@ -47,14 +48,14 @@ const TOUR_STEPS: TourStep[] = [
   {
     title: "AI Chat",
     description:
-      "Have natural conversations with Maestro AI. Describe what you want to build, attach files, and the AI will create issues and generate code.",
+      "Have natural conversations with Cortex AI. Describe what you want to build, attach files, and the AI will create issues and generate code.",
     icon: <MessageSquare className="h-6 w-6 text-cyan-400" />,
     position: "top-left",
   },
   {
     title: "Pipelines",
     description:
-      "The heart of Maestro. Create a pipeline with a requirement, and AI will analyze your codebase, plan stories, write code, review, and test - all with your approval.",
+      "The heart of Cortex. Create a pipeline with a requirement, and AI will analyze your codebase, plan stories, write code, review, and test - all with your approval.",
     icon: <GitBranch className="h-6 w-6 text-violet-400" />,
     position: "top-left",
   },
@@ -67,11 +68,20 @@ const TOUR_STEPS: TourStep[] = [
   },
 ];
 
-const STORAGE_KEY = "maestro-onboarding-seen";
+const STORAGE_KEY = "cortex-onboarding-seen";
 
 export function OnboardingTour() {
   const [step, setStep] = useState(0);
   const [visible, setVisible] = useState(false);
+  const { t } = useTranslation();
+  const translatedSteps = [
+    { title: t("onboarding.welcomeTitle"), description: t("onboarding.welcomeDesc") },
+    { title: t("onboarding.dashboardTitle"), description: t("onboarding.dashboardDesc") },
+    { title: t("onboarding.kanbanTitle"), description: t("onboarding.kanbanDesc") },
+    { title: t("onboarding.chatTitle"), description: t("onboarding.chatDesc") },
+    { title: t("onboarding.pipelineTitle"), description: t("onboarding.pipelineDesc") },
+    { title: t("onboarding.tipsTitle"), description: t("onboarding.tipsDesc") },
+  ];
 
   useEffect(() => {
     const seen = localStorage.getItem(STORAGE_KEY);
@@ -121,9 +131,9 @@ export function OnboardingTour() {
             <div className="flex items-center gap-3">
               {currentStep.icon}
               <div>
-                <h3 className="font-semibold text-sm">{currentStep.title}</h3>
+                <h3 className="font-semibold text-sm">{translatedSteps[step]?.title || currentStep.title}</h3>
                 <p className="text-[10px] text-muted-foreground">
-                  Step {step + 1} of {TOUR_STEPS.length}
+                  {t("onboarding.step", { current: String(step + 1), total: String(TOUR_STEPS.length) })}
                 </p>
               </div>
             </div>
@@ -140,7 +150,7 @@ export function OnboardingTour() {
           {/* Body */}
           <div className="p-4">
             <p className="text-sm text-muted-foreground leading-relaxed">
-              {currentStep.description}
+              {translatedSteps[step]?.description || currentStep.description}
             </p>
           </div>
 
@@ -170,14 +180,14 @@ export function OnboardingTour() {
                 className="text-xs"
                 onClick={handleDismiss}
               >
-                Skip Tour
+                {t("onboarding.skipTour")}
               </Button>
               <Button
                 size="sm"
                 className="text-xs gap-1"
                 onClick={handleNext}
               >
-                {isLast ? "Get Started" : "Next"}
+                {isLast ? t("onboarding.getStarted") : t("onboarding.next")}
                 {!isLast && <ArrowRight className="h-3 w-3" />}
               </Button>
             </div>
