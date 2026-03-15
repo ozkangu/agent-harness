@@ -4,6 +4,14 @@ Autonomous AI-powered SDLC orchestrator with per-phase backend selection, MCP in
 
 Cortex manages the full lifecycle of software tasks: from free-form chat and intent classification through pipeline-driven multi-phase workflows, all backed by pluggable CLI backends (Claude, Copilot, Codex) with per-phase configuration, MCP tool federation, and opt-in enterprise security.
 
+## Screenshots
+
+![Kanban Board](docs/screenshots/kanban-board.png)
+*Kanban board with issue tracking across workflow stages (TODO, WORKING, REVIEW, DONE)*
+
+![API Documentation](docs/screenshots/api-docs.png)
+*Auto-generated OpenAPI documentation with 75+ REST endpoints*
+
 ## Architecture
 
 ```
