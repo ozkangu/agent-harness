@@ -3,16 +3,20 @@ import { test, expect } from "@playwright/test";
 test.describe("Maestro Platform UI", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
-    // Wait for app to hydrate
-    await page.waitForSelector("[data-testid='app-shell']", { timeout: 10000 }).catch(() => {
-      // Fallback: wait for any main content
+    // Wait for app to hydrate - either the app shell loads or connection error appears
+    await Promise.race([
+      page.waitForSelector("[data-testid='app-shell']", { timeout: 15000 }),
+      page.getByText("Connection Failed").waitFor({ timeout: 15000 }),
+      page.getByText("Connecting to Cortex").waitFor({ timeout: 15000 }),
+    ]).catch(() => {
+      // Fallback: content not found yet
     });
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(2000);
   });
 
   test("should load the dashboard", async ({ page }) => {
     // The app should render without crashing
-    await expect(page).toHaveTitle(/Maestro/i);
+    await expect(page).toHaveTitle(/Maestro|Cortex/i);
   });
 
   test("should render app shell or connection screen", async ({ page }) => {

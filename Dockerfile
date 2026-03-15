@@ -14,12 +14,15 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # Copy dependency files first for layer caching
 COPY pyproject.toml uv.lock .python-version ./
 
+# Install dependencies only (not the project itself) for layer caching
+RUN uv sync --frozen --no-dev --no-install-project
+
 # Copy project source
 COPY maestro/ maestro/
 COPY static/ static/
-COPY WORKFLOW.example.md WORKFLOW.md
+COPY WORKFLOW.example.md ./
 
-# Install Python package (production only, no dev deps)
+# Install the project itself
 RUN uv sync --frozen --no-dev
 
 # Create data directory for SQLite

@@ -21,7 +21,6 @@ node_modules/
 frontend/node_modules/
 frontend/.next/
 tests/
-uv.lock
 raw_codex_output.txt
 image.png
 ANALYSIS.md
