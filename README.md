@@ -16,6 +16,7 @@ maestro/
   conversation.py    # Chat-first intent classification & routing
   entropy.py         # Manual codebase health scanning
   main.py            # CLI entry point (Click), component wiring
+  asgi.py            # Production ASGI entry point for uvicorn
   models.py          # Data models, enums, SQL schema (16 tables)
   orchestrator.py    # Async poll loop, agent dispatch, retry logic
   pipeline.py        # 14-phase state machine, approval gates
@@ -173,8 +174,11 @@ uv sync
 cp WORKFLOW.example.md WORKFLOW.md
 # Edit WORKFLOW.md with your backend settings
 
-# Start
+# Start (CLI mode)
 uv run maestro start
+
+# Start (production uvicorn)
+uv run uvicorn maestro.asgi:app --host 0.0.0.0 --port 8420
 
 # Open http://localhost:8420
 ```

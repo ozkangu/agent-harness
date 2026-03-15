@@ -126,7 +126,8 @@ Maestro is a single-process Python application with an embedded FastAPI web serv
 | Module | File | Purpose |
 |--------|------|---------|
 | **Web** | `maestro/web.py` | FastAPI application factory. 75+ REST endpoints across 13 groups. WebSocket for real-time events. CORS, static files, middleware wiring. |
-| **Main** | `maestro/main.py` | CLI entry point (Click). Initializes all components, wires dependencies, starts uvicorn. |
+| **Main** | `maestro/main.py` | CLI entry point (Click). Initializes all components, wires dependencies, starts uvicorn programmatically. |
+| **ASGI** | `maestro/asgi.py` | Production ASGI entry point. Raw ASGI protocol with lifespan management. Usage: `uvicorn maestro.asgi:app --host 0.0.0.0 --port 8420` |
 
 ---
 

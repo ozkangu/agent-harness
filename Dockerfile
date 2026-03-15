@@ -32,4 +32,4 @@ EXPOSE 8420
 
 ENV MAESTRO_DB_PATH=/data/maestro.db
 
-CMD ["uv", "run", "maestro", "--db", "/data/maestro.db", "start", "--port", "8420"]
+CMD ["uv", "run", "uvicorn", "maestro.asgi:app", "--host", "0.0.0.0", "--port", "8420"]
