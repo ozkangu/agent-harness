@@ -256,8 +256,8 @@ POST /api/auth/login {username, password}
     │
     ├── AuthManager.authenticate()
     │       ├── Look up user by username
-    │       ├── Verify password (SHA-256 + salt)
-    │       └── Generate JWT (HMAC-SHA256, 24h expiry)
+    │       ├── Verify password (bcrypt; legacy SHA-256 auto-migrated)
+    │       └── Generate JWT (PyJWT HS256, 24h expiry)
     │
     └── Return {token, user}
 
@@ -266,8 +266,7 @@ Subsequent requests:
     │
     └── AuthMiddleware.dispatch()
             ├── _verify_token(token)
-            │       ├── Base64 decode header.payload.signature
-            │       ├── Verify HMAC-SHA256 signature
+            │       ├── jwt.decode(token, secret, algorithms=["HS256"])
             │       ├── Check expiry (< 24h)
             │       └── Fetch user from DB
             │
@@ -287,10 +286,10 @@ pipelines.write      yes       yes         no
 pipelines.delete     yes        no         no
 config.read          yes       yes        yes
 config.write         yes        no         no
-mcp.read             yes       yes        yes
+mcp.read             yes       yes         no
 mcp.write            yes        no         no
 audit.read           yes       yes        yes
-audit.export         yes       yes        yes
+audit.export         yes        no         no
 users.read           yes        no         no
 users.write          yes        no         no
 secrets.read         yes        no         no
@@ -706,7 +705,7 @@ maestro start
 |----------|---------|---------|
 | `CORTEX_AUTH_ENABLED` | `false` | Enable JWT auth + RBAC |
 | `CORTEX_ADMIN_PASSWORD` | `admin` | Default admin password (first run only) |
-| `CORTEX_JWT_SECRET` | random | HMAC signing key for JWT tokens |
+| `CORTEX_JWT_SECRET` | random | HS256 signing key for JWT tokens |
 | `CORTEX_ENCRYPTION_KEY` | random | AES-256 key for secret encryption |
 
 ### Dependencies

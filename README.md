@@ -116,7 +116,7 @@ phase_backends:
 Opt-in security layer. Disabled by default (`CORTEX_AUTH_ENABLED=false`).
 
 **Authentication & RBAC:**
-- JWT tokens (HMAC-SHA256, 24h expiry)
+- JWT tokens (PyJWT HS256, 24h expiry)
 - Three roles: `admin`, `engineer`, `viewer`
 - 18 granular permissions (issues.read, pipelines.write, secrets.write, etc.)
 - API key support with optional expiry
@@ -187,7 +187,7 @@ export CORTEX_AUTH_ENABLED=true
 export CORTEX_ADMIN_PASSWORD=my-secure-password
 export CORTEX_ENCRYPTION_KEY=my-encryption-key
 
-maestro start
+uv run maestro start
 # Login at http://localhost:8420 (admin / my-secure-password)
 ```
 
@@ -252,7 +252,7 @@ The body is a Jinja2 template rendered per-issue with `{{ issue.* }}` and `{{ co
 |---|---|---|
 | `CORTEX_AUTH_ENABLED` | `false` | Enable JWT authentication and RBAC |
 | `CORTEX_ADMIN_PASSWORD` | `admin` | Default admin password (first run only) |
-| `CORTEX_JWT_SECRET` | random | HMAC signing key for JWT tokens |
+| `CORTEX_JWT_SECRET` | random | HS256 signing key for JWT tokens |
 | `CORTEX_ENCRYPTION_KEY` | random | AES-256 key for secret encryption |
 
 ## API Endpoints
@@ -450,7 +450,7 @@ CORTEX_AUTH_ENABLED=true
 | Issues (read/write/delete) | all | read/write | read |
 | Pipelines (read/write/delete) | all | read/write | read |
 | Config (read/write) | all | read | read |
-| MCP (read/write) | all | read | read |
+| MCP (read/write) | all | read | - |
 | Audit (read/export) | all | read | read |
 | Users (read/write) | all | - | - |
 | Secrets (read/write) | all | - | - |
