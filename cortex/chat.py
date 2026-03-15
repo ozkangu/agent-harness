@@ -204,7 +204,7 @@ class ChatStore:
         task_type: str | None = None,
         context_snapshot: str | None = None,
     ) -> ChatMessage:
-        """Add a message linked to a conversation (uses pipeline_id=0 as placeholder)."""
+        """Add a message linked to a conversation."""
         now = datetime.now(timezone.utc).isoformat()
         cursor = await self.db.execute(
             """INSERT INTO messages
@@ -212,7 +212,7 @@ class ChatStore:
                 conversation_id, task_type, context_snapshot)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
-                0,  # pipeline_id placeholder for conversation messages
+                None,  # no pipeline for conversation messages
                 role.value,
                 content,
                 "repo_context",  # default phase for conversation messages

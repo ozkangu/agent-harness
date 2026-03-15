@@ -510,13 +510,17 @@ CREATE TABLE IF NOT EXISTS issues (
 
 CREATE TABLE IF NOT EXISTS messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    pipeline_id INTEGER NOT NULL,
+    pipeline_id INTEGER,
     role TEXT NOT NULL,
     content TEXT NOT NULL,
     phase TEXT NOT NULL,
     metadata TEXT,
     created_at TEXT NOT NULL,
-    FOREIGN KEY (pipeline_id) REFERENCES pipelines(id)
+    conversation_id INTEGER,
+    task_type TEXT,
+    context_snapshot TEXT,
+    FOREIGN KEY (pipeline_id) REFERENCES pipelines(id),
+    FOREIGN KEY (conversation_id) REFERENCES conversations(id)
 );
 
 CREATE TABLE IF NOT EXISTS activity_log (

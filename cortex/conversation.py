@@ -106,9 +106,9 @@ class ConversationManager:
                 stall_timeout=30,
                 turn_timeout=60,
             )
-            if result.success and result.raw_output:
-                output = result.raw_output.strip()
-                # Try to extract JSON from output
+            if result.success:
+                output = _extract_result_text(result) or ""
+                # Try to extract JSON from result text
                 for line in output.split("\n"):
                     line = line.strip()
                     if line.startswith("{") and "intent" in line:
@@ -150,8 +150,8 @@ Respond helpfully and concisely."""
                 stall_timeout=60,
                 turn_timeout=120,
             )
-            if result.success and result.raw_output:
-                response_text = result.raw_output.strip()
+            if result.success:
+                response_text = _extract_result_text(result) or response_text
         except Exception:
             logger.exception("Chat response generation failed")
 
@@ -252,6 +252,29 @@ Respond helpfully and concisely."""
             role = m.role.value.capitalize()
             lines.append(f"{role}: {m.content[:200]}")
         return "\n".join(lines)
+
+
+def _extract_result_text(result) -> str | None:
+    """Extract the clean response text from a RunResult.
+
+    The runner returns JSONL output; look for the ``result`` line
+    which contains the final assistant text.
+    """
+    for line in reversed(result.output_lines):
+        if isinstance(line, dict) and line.get("type") == "result":
+            text = line.get("result")
+            if text and isinstance(text, str):
+                return text.strip()
+    # Fallback: look for assistant message content
+    for line in reversed(result.output_lines):
+        if isinstance(line, dict) and line.get("type") == "assistant":
+            msg = line.get("message", {})
+            content = msg.get("content", [])
+            if isinstance(content, list):
+                parts = [c.get("text", "") for c in content if c.get("type") == "text"]
+                if parts:
+                    return "\n".join(parts).strip()
+    return None
 
 
 async def _noop_notify(event: str, data: dict) -> None:
