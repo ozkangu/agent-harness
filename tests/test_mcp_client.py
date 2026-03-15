@@ -1,4 +1,4 @@
-"""Tests for maestro.mcp_client."""
+"""Tests for cortex.mcp_client."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 import aiosqlite
 import pytest
 
-from maestro.mcp_client import MCPClientManager
+from cortex.mcp_client import MCPClientManager
 
 pytestmark = pytest.mark.asyncio
 

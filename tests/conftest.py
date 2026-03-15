@@ -1,4 +1,4 @@
-"""Shared test fixtures for Maestro tests."""
+"""Shared test fixtures for Cortex tests."""
 
 from __future__ import annotations
 
@@ -9,8 +9,8 @@ import aiosqlite
 import pytest
 import pytest_asyncio
 
-from maestro.board import Board
-from maestro.models import SCHEMA
+from cortex.board import Board
+from cortex.models import SCHEMA
 
 
 @pytest_asyncio.fixture
@@ -41,7 +41,7 @@ def workflow_content() -> str:
 copilot:
   binary: "claude"
   model: "sonnet"
-  agent: "maestro-worker"
+  agent: "cortex-worker"
   max_autopilot_continues: 50
   deny_tools:
     - "shell(rm -rf *)"

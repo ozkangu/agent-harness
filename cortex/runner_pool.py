@@ -5,8 +5,8 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field, replace
 
-from maestro.models import BackendConfig, BackendType, PipelinePhase
-from maestro.runner import BaseRunner, create_runner
+from cortex.models import BackendConfig, BackendType, PipelinePhase
+from cortex.runner import BaseRunner, create_runner
 
 logger = logging.getLogger(__name__)
 

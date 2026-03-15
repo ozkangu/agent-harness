@@ -1,4 +1,4 @@
-# Backend Dockerfile for Maestro
+# Backend Dockerfile for Cortex
 FROM python:3.11-slim AS backend
 
 WORKDIR /app
@@ -18,7 +18,7 @@ COPY pyproject.toml uv.lock .python-version ./
 RUN uv sync --frozen --no-dev --no-install-project
 
 # Copy project source
-COPY maestro/ maestro/
+COPY cortex/ cortex/
 COPY static/ static/
 COPY WORKFLOW.example.md ./
 
@@ -30,6 +30,6 @@ RUN mkdir -p /data
 
 EXPOSE 8420
 
-ENV MAESTRO_DB_PATH=/data/maestro.db
+ENV CORTEX_DB_PATH=/data/cortex.db
 
-CMD ["uv", "run", "uvicorn", "maestro.asgi:app", "--host", "0.0.0.0", "--port", "8420"]
+CMD ["uv", "run", "uvicorn", "cortex.asgi:app", "--host", "0.0.0.0", "--port", "8420"]

@@ -8,9 +8,9 @@ import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
 
-from maestro.board import Board
-from maestro.models import IssueStatus
-from maestro.web import create_app
+from cortex.board import Board
+from cortex.models import IssueStatus
+from cortex.web import create_app
 
 
 pytestmark = pytest.mark.asyncio
@@ -40,7 +40,7 @@ async def test_create_issue(client) -> None:
     })
     assert res.status_code == 201
     data = res.json()
-    assert data["key"] == "MST-1"
+    assert data["key"] == "CTX-1"
     assert data["title"] == "Test issue"
     assert data["status"] == "todo"
 

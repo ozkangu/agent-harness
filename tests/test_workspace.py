@@ -9,15 +9,15 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from maestro.models import HooksConfig, Issue, IssueStatus
-from maestro.workspace import Workspace
+from cortex.models import HooksConfig, Issue, IssueStatus
+from cortex.workspace import Workspace
 
 
 @pytest.fixture
 def sample_issue() -> Issue:
     return Issue(
         id=1,
-        key="MST-1",
+        key="CTX-1",
         title="Test issue",
         description="description",
         status=IssueStatus.TODO,
@@ -35,8 +35,8 @@ def test_workspace_init(sample_issue: Issue, tmp_path: Path) -> None:
         default_branch="main",
         base_dir=str(tmp_path),
     )
-    assert ws.branch_name == "agent/mst-1"
-    assert "maestro-mst-1" in str(ws.workdir)
+    assert ws.branch_name == "agent/ctx-1"
+    assert "cortex-ctx-1" in str(ws.workdir)
 
 
 def test_workspace_branch_name(sample_issue: Issue) -> None:
@@ -45,7 +45,7 @@ def test_workspace_branch_name(sample_issue: Issue) -> None:
         repo_url="https://github.com/test/repo.git",
         default_branch="main",
     )
-    assert ws.branch_name == "agent/mst-1"
+    assert ws.branch_name == "agent/ctx-1"
 
 
 @pytest.mark.asyncio

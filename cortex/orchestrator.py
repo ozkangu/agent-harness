@@ -8,12 +8,12 @@ import random
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
-from maestro.board import Board
-from maestro.config import WorkflowLoader, render_prompt
-from maestro.models import Issue, IssueStatus, MaestroConfig, PipelinePhase
-from maestro.runner import RunResult, create_runner
-from maestro.runner_pool import RunnerPool
-from maestro.workspace import Workspace
+from cortex.board import Board
+from cortex.config import WorkflowLoader, render_prompt
+from cortex.models import Issue, IssueStatus, CortexConfig, PipelinePhase
+from cortex.runner import RunResult, create_runner
+from cortex.runner_pool import RunnerPool
+from cortex.workspace import Workspace
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ class Orchestrator:
         self._poll_interval = 10.0  # seconds
 
     @property
-    def config(self) -> MaestroConfig:
+    def config(self) -> CortexConfig:
         return self.workflow_loader.load()
 
     async def start(self) -> None:
@@ -106,7 +106,7 @@ class Orchestrator:
         except Exception:
             logger.exception("Error in orchestrator tick")
 
-    async def _should_dispatch(self, issue: Issue, cfg: MaestroConfig) -> bool:
+    async def _should_dispatch(self, issue: Issue, cfg: CortexConfig) -> bool:
         """Check if an issue should be dispatched (backoff, retry limits)."""
         if issue.attempt_count >= cfg.orchestrator.max_retries:
             return False
@@ -151,7 +151,7 @@ class Orchestrator:
 
         return True
 
-    async def _dispatch(self, issue: Issue, cfg: MaestroConfig) -> None:
+    async def _dispatch(self, issue: Issue, cfg: CortexConfig) -> None:
         """Dispatch an agent to work on an issue."""
         logger.info("Dispatching agent for %s: %s", issue.key, issue.title)
 
@@ -219,7 +219,7 @@ class Orchestrator:
         return ""
 
     async def _run_agent(
-        self, issue: Issue, workspace: Workspace, cfg: MaestroConfig
+        self, issue: Issue, workspace: Workspace, cfg: CortexConfig
     ) -> RunResult:
         """Full agent execution: workspace setup, context enrichment, run, quality check, cleanup."""
         try:

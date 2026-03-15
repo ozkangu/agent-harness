@@ -9,9 +9,9 @@ from pathlib import Path
 
 import aiosqlite
 
-from maestro.board import Board
-from maestro.chat import ChatStore
-from maestro.models import EntropyTask
+from cortex.board import Board
+from cortex.chat import ChatStore
+from cortex.models import EntropyTask
 
 logger = logging.getLogger(__name__)
 

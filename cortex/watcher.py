@@ -11,7 +11,7 @@ import yaml  # type: ignore[import-untyped]
 from watchdog.events import FileSystemEventHandler, FileCreatedEvent
 from watchdog.observers import Observer  # type: ignore[attr-defined]
 
-from maestro.board import Board
+from cortex.board import Board
 
 logger = logging.getLogger(__name__)
 

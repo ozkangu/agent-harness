@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 import aiosqlite
 
-from maestro.models import (
+from cortex.models import (
     ChatMessage,
     Conversation,
     ConversationStatus,

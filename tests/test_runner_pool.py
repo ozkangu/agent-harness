@@ -1,4 +1,4 @@
-"""Tests for maestro.runner_pool."""
+"""Tests for cortex.runner_pool."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ from unittest.mock import patch
 
 import pytest
 
-from maestro.models import BackendConfig, BackendType, PipelinePhase
-from maestro.runner_pool import PhaseBackendOverride, RunnerPool
+from cortex.models import BackendConfig, BackendType, PipelinePhase
+from cortex.runner_pool import PhaseBackendOverride, RunnerPool
 
 pytestmark = pytest.mark.asyncio
 
@@ -58,7 +58,7 @@ class TestPhaseBackendOverride:
 
 
 class TestRunnerPool:
-    @patch("maestro.runner_pool.create_runner")
+    @patch("cortex.runner_pool.create_runner")
     def test_default_runner_cached(self, mock_create):
         mock_create.return_value = object()
         config = BackendConfig(backend=BackendType.CLAUDE, model="sonnet")
@@ -68,7 +68,7 @@ class TestRunnerPool:
         assert r1 is r2
         assert mock_create.call_count == 1
 
-    @patch("maestro.runner_pool.create_runner")
+    @patch("cortex.runner_pool.create_runner")
     def test_set_and_remove_override(self, mock_create):
         mock_create.return_value = object()
         config = BackendConfig(backend=BackendType.CLAUDE, model="sonnet")
@@ -87,7 +87,7 @@ class TestRunnerPool:
         effective = pool.get_config_for_phase(PipelinePhase.CODING)
         assert effective.backend == BackendType.CLAUDE
 
-    @patch("maestro.runner_pool.create_runner")
+    @patch("cortex.runner_pool.create_runner")
     def test_get_phase_map(self, mock_create):
         mock_create.return_value = object()
         config = BackendConfig(backend=BackendType.CLAUDE, model="sonnet")
@@ -106,7 +106,7 @@ class TestRunnerPool:
         assert phase_map["coding"]["overridden"] is False
         assert phase_map["coding"]["backend"] == "claude"
 
-    @patch("maestro.runner_pool.create_runner")
+    @patch("cortex.runner_pool.create_runner")
     def test_update_default_clears_cache(self, mock_create):
         mock_create.return_value = object()
         config = BackendConfig(backend=BackendType.CLAUDE, model="sonnet")

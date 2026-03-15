@@ -13,13 +13,13 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from maestro.board import Board
-from maestro.chat import ChatStore
-from maestro.config import WorkflowLoader
-from maestro.models import BackendType, IssueStatus, PipelinePhase
-from maestro.pipeline import PipelineManager
-from maestro.conversation import ConversationManager
-from maestro.runner_pool import RunnerPool, PhaseBackendOverride
+from cortex.board import Board
+from cortex.chat import ChatStore
+from cortex.config import WorkflowLoader
+from cortex.models import BackendType, IssueStatus, PipelinePhase
+from cortex.pipeline import PipelineManager
+from cortex.conversation import ConversationManager
+from cortex.runner_pool import RunnerPool, PhaseBackendOverride
 
 NotifyCallback = Callable[[str, dict], Awaitable[None]]
 
@@ -101,7 +101,7 @@ def create_app(
     policy_engine=None,
 ) -> tuple[FastAPI, NotifyCallback]:
     """Create the FastAPI application."""
-    app = FastAPI(title="Maestro", version="0.1.0")
+    app = FastAPI(title="Cortex", version="0.1.0")
 
     # CORS for frontend dev server
     app.add_middleware(
@@ -114,12 +114,12 @@ def create_app(
 
     # Auth and rate limit middleware
     if auth_manager and auth_manager.enabled:
-        from maestro.middleware import AuthMiddleware, RateLimitMiddleware
+        from cortex.middleware import AuthMiddleware, RateLimitMiddleware
         app.add_middleware(RateLimitMiddleware, requests_per_minute=120)
         app.add_middleware(AuthMiddleware, auth_manager=auth_manager)
     elif auth_manager:
         # Even when disabled, add middleware to set anonymous user
-        from maestro.middleware import AuthMiddleware
+        from cortex.middleware import AuthMiddleware
         app.add_middleware(AuthMiddleware, auth_manager=auth_manager)
 
     ws_manager = ConnectionManager()
@@ -157,7 +157,7 @@ def create_app(
         board_html = STATIC_DIR / "board.html"
         if board_html.exists():
             return FileResponse(str(board_html))
-        return HTMLResponse("<h1>Maestro</h1><p>Static files not found.</p>")
+        return HTMLResponse("<h1>Cortex</h1><p>Static files not found.</p>")
 
     # --- Issue endpoints ---
 
@@ -355,7 +355,7 @@ def create_app(
         if pipeline is None:
             raise HTTPException(404, f"Pipeline {pipeline_id} not found")
 
-        from maestro.planner import extract_verdict
+        from cortex.planner import extract_verdict
 
         # Parse stories JSON
         stories_parsed = None
@@ -726,7 +726,7 @@ def create_app(
     async def create_user(req: dict):
         if auth_manager is None:
             raise HTTPException(501, "Auth not configured")
-        from maestro.auth import Role
+        from cortex.auth import Role
         username = req.get("username", "")
         email = req.get("email", "")
         password = req.get("password", "")

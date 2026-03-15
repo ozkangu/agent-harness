@@ -1,4 +1,4 @@
-"""Data structures and SQLite schema for Maestro."""
+"""Data structures and SQLite schema for Cortex."""
 
 from __future__ import annotations
 
@@ -452,7 +452,7 @@ class OrchestratorConfig:
     backoff_base_seconds: int = 60
     backoff_max_seconds: int = 3600
     web_port: int = 8420
-    db_path: str = "maestro.db"
+    db_path: str = "cortex.db"
     issues_dir: str = "issues"
     auto_approve: bool = True
     max_inner_iterations: int = 3
@@ -460,7 +460,7 @@ class OrchestratorConfig:
 
 
 @dataclass
-class MaestroConfig:
+class CortexConfig:
     copilot: CopilotConfig = field(default_factory=CopilotConfig)
     orchestrator: OrchestratorConfig = field(default_factory=OrchestratorConfig)
     prompt_template: str = ""

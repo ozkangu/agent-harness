@@ -8,10 +8,10 @@ services:
     ports:
       - "8420:8420"
     volumes:
-      - maestro-data:/data
+      - cortex-data:/data
       - ./WORKFLOW.md:/app/WORKFLOW.md:ro
     environment:
-      - MAESTRO_DB_PATH=/data/maestro.db
+      - CORTEX_DB_PATH=/data/cortex.db
       - COPILOT_GITHUB_TOKEN=${COPILOT_GITHUB_TOKEN:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - CORTEX_AUTH_ENABLED=${CORTEX_AUTH_ENABLED:-false}
@@ -40,4 +40,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  maestro-data:
+  cortex-data:

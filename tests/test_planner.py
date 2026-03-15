@@ -8,17 +8,17 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 import pytest_asyncio
 
-from maestro.board import Board
-from maestro.chat import ChatStore
-from maestro.models import MessageRole, PipelinePhase
-from maestro.planner import (
+from cortex.board import Board
+from cortex.chat import ChatStore
+from cortex.models import MessageRole, PipelinePhase
+from cortex.planner import (
     PlannerAgent,
     extract_json_object,
     extract_json_from_output,
     extract_result_content,
     extract_verdict,
 )
-from maestro.runner import CopilotRunner, RunResult
+from cortex.runner import CopilotRunner, RunResult
 
 
 pytestmark = pytest.mark.asyncio

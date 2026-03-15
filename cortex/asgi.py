@@ -1,11 +1,11 @@
 """ASGI entry point for production deployment with uvicorn.
 
 Usage:
-    uvicorn maestro.asgi:app --host 0.0.0.0 --port 8420
+    uvicorn cortex.asgi:app --host 0.0.0.0 --port 8420
 
 Environment variables:
-    MAESTRO_DB_PATH      -- SQLite database path (default: maestro.db)
-    MAESTRO_WORKFLOW     -- Workflow config file (default: WORKFLOW.md)
+    CORTEX_DB_PATH       -- SQLite database path (default: cortex.db)
+    CORTEX_WORKFLOW      -- Workflow config file (default: WORKFLOW.md)
     CORTEX_AUTH_ENABLED  -- Enable JWT auth (default: false)
 """
 
@@ -19,37 +19,37 @@ from pathlib import Path
 
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-from maestro.board import Board
-from maestro.chat import ChatStore
-from maestro.config import WorkflowLoader
-from maestro.constants import DEFAULT_DB_PATH, WORKFLOW_FILE
-from maestro.context import ContextEngine
-from maestro.conversation import ConversationManager
-from maestro.entropy import EntropyManager
-from maestro.models import BackendType
-from maestro.orchestrator import Orchestrator
-from maestro.pipeline import PipelineManager
-from maestro.planner import PlannerAgent
-from maestro.quality import QualityGate
-from maestro.runner_pool import RunnerPool
-from maestro.watcher import IssueWatcher
-from maestro.web import create_app
-from maestro.mcp_server import create_mcp_server
-from maestro.mcp_client import MCPClientManager
-from maestro.auth import AuthManager
-from maestro.audit import AuditLogger
-from maestro.secrets import SecretManager
-from maestro.policy import PolicyEngine
+from cortex.board import Board
+from cortex.chat import ChatStore
+from cortex.config import WorkflowLoader
+from cortex.constants import DEFAULT_DB_PATH, WORKFLOW_FILE
+from cortex.context import ContextEngine
+from cortex.conversation import ConversationManager
+from cortex.entropy import EntropyManager
+from cortex.models import BackendType
+from cortex.orchestrator import Orchestrator
+from cortex.pipeline import PipelineManager
+from cortex.planner import PlannerAgent
+from cortex.quality import QualityGate
+from cortex.runner_pool import RunnerPool
+from cortex.watcher import IssueWatcher
+from cortex.web import create_app
+from cortex.mcp_server import create_mcp_server
+from cortex.mcp_client import MCPClientManager
+from cortex.auth import AuthManager
+from cortex.audit import AuditLogger
+from cortex.secrets import SecretManager
+from cortex.policy import PolicyEngine
 
 logger = logging.getLogger(__name__)
 
 
-class MaestroApp:
-    """ASGI application that initialises all Maestro services on startup.
+class CortexApp:
+    """ASGI application that initialises all Cortex services on startup.
 
     Implements the raw ASGI protocol so it can handle the lifespan
     handshake itself, then delegates every HTTP / WebSocket request
-    to the inner FastAPI app built by :func:`maestro.web.create_app`.
+    to the inner FastAPI app built by :func:`cortex.web.create_app`.
     """
 
     def __init__(self) -> None:
@@ -91,12 +91,12 @@ class MaestroApp:
                 return
 
     # ------------------------------------------------------------------
-    # Startup – mirrors maestro.main._start_async
+    # Startup – mirrors cortex.main._start_async
     # ------------------------------------------------------------------
 
     async def _startup(self) -> None:
-        db_path = os.environ.get("MAESTRO_DB_PATH", DEFAULT_DB_PATH)
-        workflow = os.environ.get("MAESTRO_WORKFLOW", WORKFLOW_FILE)
+        db_path = os.environ.get("CORTEX_DB_PATH", DEFAULT_DB_PATH)
+        workflow = os.environ.get("CORTEX_WORKFLOW", WORKFLOW_FILE)
 
         # Ensure workflow file exists
         wf = Path(workflow)
@@ -241,14 +241,14 @@ class MaestroApp:
         # Build the middleware stack so the inner app is ready to serve
         self._inner = fastapi_app  # type: ignore[assignment]
 
-        logger.info("Maestro started (pid=%d)", os.getpid())
+        logger.info("Cortex started (pid=%d)", os.getpid())
 
     # ------------------------------------------------------------------
     # Shutdown
     # ------------------------------------------------------------------
 
     async def _shutdown(self) -> None:
-        logger.info("Maestro shutting down...")
+        logger.info("Cortex shutting down...")
 
         if self._orchestrator is not None:
             await self._orchestrator.stop()
@@ -266,9 +266,9 @@ class MaestroApp:
         if self._board is not None:
             await self._board.close()
 
-        logger.info("Maestro stopped.")
+        logger.info("Cortex stopped.")
 
 
 # Module-level ASGI app – use with:
-#   uvicorn maestro.asgi:app --host 0.0.0.0 --port 8420
-app = MaestroApp()
+#   uvicorn cortex.asgi:app --host 0.0.0.0 --port 8420
+app = CortexApp()

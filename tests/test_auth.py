@@ -1,4 +1,4 @@
-"""Tests for maestro.auth."""
+"""Tests for cortex.auth."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from unittest.mock import patch
 import aiosqlite
 import pytest
 
-from maestro.auth import (
+from cortex.auth import (
     AuthManager,
     Role,
     User,
@@ -76,7 +76,7 @@ class TestJWT:
         assert payload["rol"] == "admin"
 
     def test_expired_token(self):
-        with patch("maestro.auth.time") as mock_time:
+        with patch("cortex.auth.time") as mock_time:
             mock_time.time.return_value = time.time() - 100000
             token = _create_token(1, "admin", "admin")
 

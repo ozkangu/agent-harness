@@ -10,16 +10,16 @@ from pathlib import Path
 import yaml  # type: ignore[import-untyped]
 from jinja2 import Template
 
-from maestro.models import (
+from cortex.models import (
     BackendConfig,
     BackendType,
     HooksConfig,
     Issue,
-    MaestroConfig,
+    CortexConfig,
     OrchestratorConfig,
     PipelinePhase,
 )
-from maestro.runner_pool import PhaseBackendOverride
+from cortex.runner_pool import PhaseBackendOverride
 from dataclasses import replace
 
 logger = logging.getLogger(__name__)
@@ -55,7 +55,7 @@ def _resolve_env_recursive(obj: object) -> object:
     return obj
 
 
-def parse_workflow(content: str) -> MaestroConfig:
+def parse_workflow(content: str) -> CortexConfig:
     """Parse a WORKFLOW.md file with YAML frontmatter and Jinja2 body."""
     # Split YAML frontmatter from body
     parts = content.split("---", 2)
@@ -125,7 +125,7 @@ def parse_workflow(content: str) -> MaestroConfig:
         backoff_base_seconds=int(orch_raw.get("backoff_base_seconds", 60)),
         backoff_max_seconds=int(orch_raw.get("backoff_max_seconds", 3600)),
         web_port=int(orch_raw.get("web_port", 8420)),
-        db_path=orch_raw.get("db_path", "maestro.db"),
+        db_path=orch_raw.get("db_path", "cortex.db"),
         issues_dir=orch_raw.get("issues_dir", "issues"),
         auto_approve=auto_approve,
         max_inner_iterations=int(orch_raw.get("max_inner_iterations", 3)),
@@ -159,7 +159,7 @@ def parse_workflow(content: str) -> MaestroConfig:
             extra_args=phase_cfg.get("extra_args", []),
         )
 
-    return MaestroConfig(
+    return CortexConfig(
         copilot=copilot,
         orchestrator=orchestrator,
         prompt_template=body,
@@ -167,7 +167,7 @@ def parse_workflow(content: str) -> MaestroConfig:
     )
 
 
-def load_workflow(path: str | Path) -> MaestroConfig:
+def load_workflow(path: str | Path) -> CortexConfig:
     """Load and parse a WORKFLOW.md file from disk."""
     p = Path(path)
     if not p.exists():
@@ -176,7 +176,7 @@ def load_workflow(path: str | Path) -> MaestroConfig:
     return parse_workflow(content)
 
 
-def render_prompt(config: MaestroConfig, issue: Issue, context: str = "") -> str:
+def render_prompt(config: CortexConfig, issue: Issue, context: str = "") -> str:
     """Render the prompt template with issue context and optional context injection."""
     template = Template(config.prompt_template)
     return template.render(issue=issue, context=context)
@@ -187,10 +187,10 @@ class WorkflowLoader:
 
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)
-        self._config: MaestroConfig | None = None
+        self._config: CortexConfig | None = None
         self._mtime: float = 0.0
 
-    def load(self) -> MaestroConfig:
+    def load(self) -> CortexConfig:
         """Load or reload config if the file has changed."""
         if not self.path.exists():
             if self._config is not None:
@@ -205,7 +205,7 @@ class WorkflowLoader:
 
         return self._config
 
-    def set_backend(self, backend: BackendType, model: str = "") -> MaestroConfig:
+    def set_backend(self, backend: BackendType, model: str = "") -> CortexConfig:
         """Update the backend type in-memory and reset backend-specific binary/model overrides."""
         cfg = self.load()
         new_copilot = replace(
@@ -219,7 +219,7 @@ class WorkflowLoader:
 
     def set_phase_backend(
         self, phase: PipelinePhase, backend: BackendType, model: str = ""
-    ) -> MaestroConfig:
+    ) -> CortexConfig:
         """Set a per-phase backend override in-memory."""
         cfg = self.load()
         override = PhaseBackendOverride(phase=phase, backend=backend, model=model)
@@ -228,7 +228,7 @@ class WorkflowLoader:
         self._config = replace(cfg, phase_backends=new_phase_backends)
         return self._config
 
-    def remove_phase_backend(self, phase: PipelinePhase) -> MaestroConfig:
+    def remove_phase_backend(self, phase: PipelinePhase) -> CortexConfig:
         """Remove a per-phase backend override."""
         cfg = self.load()
         new_phase_backends = dict(cfg.phase_backends)

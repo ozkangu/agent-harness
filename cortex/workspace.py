@@ -8,7 +8,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from maestro.models import HooksConfig, Issue
+from cortex.models import HooksConfig, Issue
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class Workspace:
         self.default_branch = default_branch
         self.hooks = hooks or HooksConfig()
         self._base_dir = base_dir or tempfile.gettempdir()
-        self.workdir = Path(self._base_dir) / f"maestro-{issue.key.lower()}"
+        self.workdir = Path(self._base_dir) / f"cortex-{issue.key.lower()}"
         self.branch_name = f"agent/{issue.key.lower()}"
 
     async def create(self) -> Path:

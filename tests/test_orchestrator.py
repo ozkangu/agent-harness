@@ -10,12 +10,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import pytest_asyncio
 
-from maestro.board import Board
-from maestro.config import WorkflowLoader, parse_workflow
-from maestro.models import IssueStatus, MaestroConfig
-from maestro.orchestrator import ActiveRun, Orchestrator
-from maestro.runner import RunResult
-from maestro.workspace import Workspace
+from cortex.board import Board
+from cortex.config import WorkflowLoader, parse_workflow
+from cortex.models import IssueStatus, CortexConfig
+from cortex.orchestrator import ActiveRun, Orchestrator
+from cortex.runner import RunResult
+from cortex.workspace import Workspace
 
 
 pytestmark = pytest.mark.asyncio
@@ -197,7 +197,7 @@ async def test_manual_retry_invalid_status(orchestrator: Orchestrator, board: Bo
 
 async def test_manual_retry_not_found(orchestrator: Orchestrator) -> None:
     with pytest.raises(ValueError, match="not found"):
-        await orchestrator.manual_retry("MST-999")
+        await orchestrator.manual_retry("CTX-999")
 
 
 async def test_handle_completion_calls_on_issue_completed(board: Board, workflow_content: str, tmp_path: Path) -> None:

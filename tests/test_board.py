@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from maestro.board import Board
-from maestro.models import IssueStatus
+from cortex.board import Board
+from cortex.models import IssueStatus
 
 
 pytestmark = pytest.mark.asyncio
@@ -13,9 +13,9 @@ pytestmark = pytest.mark.asyncio
 
 async def test_create_issue(board: Board) -> None:
     issue = await board.create_issue(
-        "Test issue", "A description", "high", ["bug"], story_id="STORY-1", depends_on=["MST-9"]
+        "Test issue", "A description", "high", ["bug"], story_id="STORY-1", depends_on=["CTX-9"]
     )
-    assert issue.key == "MST-1"
+    assert issue.key == "CTX-1"
     assert issue.title == "Test issue"
     assert issue.description == "A description"
     assert issue.priority == "high"
@@ -23,16 +23,16 @@ async def test_create_issue(board: Board) -> None:
     assert issue.status == IssueStatus.TODO
     assert issue.attempt_count == 0
     assert issue.story_id == "STORY-1"
-    assert issue.depends_on == ["MST-9"]
+    assert issue.depends_on == ["CTX-9"]
 
 
 async def test_auto_increment_keys(board: Board) -> None:
     i1 = await board.create_issue("First")
     i2 = await board.create_issue("Second")
     i3 = await board.create_issue("Third")
-    assert i1.key == "MST-1"
-    assert i2.key == "MST-2"
-    assert i3.key == "MST-3"
+    assert i1.key == "CTX-1"
+    assert i2.key == "CTX-2"
+    assert i3.key == "CTX-3"
 
 
 async def test_get_issues_all(board: Board) -> None:
@@ -60,7 +60,7 @@ async def test_get_issue(board: Board) -> None:
 
 
 async def test_get_issue_not_found(board: Board) -> None:
-    result = await board.get_issue("MST-999")
+    result = await board.get_issue("CTX-999")
     assert result is None
 
 
@@ -78,7 +78,7 @@ async def test_update_status_invalid_transition(board: Board) -> None:
 
 async def test_update_status_not_found(board: Board) -> None:
     with pytest.raises(ValueError, match="not found"):
-        await board.update_status("MST-999", IssueStatus.WORKING)
+        await board.update_status("CTX-999", IssueStatus.WORKING)
 
 
 async def test_full_lifecycle(board: Board) -> None:

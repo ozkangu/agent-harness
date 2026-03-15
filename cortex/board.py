@@ -9,8 +9,8 @@ from pathlib import Path
 
 import aiosqlite
 
-from maestro.constants import ISSUE_KEY_PREFIX
-from maestro.models import (
+from cortex.constants import ISSUE_KEY_PREFIX
+from cortex.models import (
     SCHEMA,
     VALID_TRANSITIONS,
     ActivityEntry,

@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 
-from maestro.board import Board
-from maestro.watcher import parse_issue_markdown, IssueFileHandler
+from cortex.board import Board
+from cortex.watcher import parse_issue_markdown, IssueFileHandler
 
 
 def test_parse_issue_markdown(sample_issue_md: str) -> None:

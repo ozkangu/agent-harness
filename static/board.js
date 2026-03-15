@@ -1,8 +1,8 @@
-// Maestro Kanban Board - Vanilla JS SPA
+// Cortex Kanban Board - Vanilla JS SPA
 
 // --- Theme Toggle ---
 (function initTheme() {
-    const saved = localStorage.getItem('maestro-theme');
+    const saved = localStorage.getItem('cortex-theme');
     if (saved) {
         document.documentElement.setAttribute('data-theme', saved);
     }
@@ -16,7 +16,7 @@ function toggleTheme() {
     } else {
         document.documentElement.setAttribute('data-theme', next);
     }
-    localStorage.setItem('maestro-theme', next);
+    localStorage.setItem('cortex-theme', next);
     updateThemeButton();
 }
 

@@ -1,11 +1,11 @@
-"""Tests for maestro.audit."""
+"""Tests for cortex.audit."""
 
 from __future__ import annotations
 
 import aiosqlite
 import pytest
 
-from maestro.audit import AuditLogger
+from cortex.audit import AuditLogger
 
 pytestmark = pytest.mark.asyncio
 
@@ -16,7 +16,7 @@ class TestAuditLogger:
         await logger.log(
             action="create",
             resource_type="issue",
-            resource_id="MST-1",
+            resource_id="CTX-1",
             user_id=1,
             username="admin",
         )
@@ -25,7 +25,7 @@ class TestAuditLogger:
         assert len(entries) == 1
         assert entries[0].action == "create"
         assert entries[0].resource_type == "issue"
-        assert entries[0].resource_id == "MST-1"
+        assert entries[0].resource_id == "CTX-1"
         assert entries[0].username == "admin"
 
     async def test_query_by_action(self, db: aiosqlite.Connection):

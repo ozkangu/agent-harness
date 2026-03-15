@@ -7,15 +7,15 @@ import json
 import logging
 from typing import Callable, Awaitable
 
-from maestro.board import Board
-from maestro.chat import ChatStore
-from maestro.models import (
+from cortex.board import Board
+from cortex.chat import ChatStore
+from cortex.models import (
     IssueStatus,
     MessageRole,
     PHASE_TRANSITIONS,
     PipelinePhase,
 )
-from maestro.planner import PlannerAgent
+from cortex.planner import PlannerAgent
 
 logger = logging.getLogger(__name__)
 

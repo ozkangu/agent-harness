@@ -5,9 +5,9 @@ from __future__ import annotations
 import pytest
 import pytest_asyncio
 
-from maestro.board import Board
-from maestro.chat import ChatStore
-from maestro.models import MessageRole, PipelinePhase
+from cortex.board import Board
+from cortex.chat import ChatStore
+from cortex.models import MessageRole, PipelinePhase
 
 
 pytestmark = pytest.mark.asyncio

@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "maestro"
+name = "cortex"
 version = "0.1.0"
 description = "Autonomous coding agent orchestrator with built-in Kanban board"
 requires-python = ">=3.11"
@@ -31,7 +31,7 @@ dev = [
 ]
 
 [project.scripts]
-maestro = "maestro.main:main"
+cortex = "cortex.main:main"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

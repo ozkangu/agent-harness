@@ -1,4 +1,4 @@
-"""CLI entry point for Maestro."""
+"""CLI entry point for Cortex."""
 
 from __future__ import annotations
 
@@ -13,32 +13,32 @@ import uvicorn
 from rich.console import Console
 from rich.table import Table
 
-from maestro.board import Board
-from maestro.chat import ChatStore
-from maestro.config import WorkflowLoader
-from maestro.constants import (
+from cortex.board import Board
+from cortex.chat import ChatStore
+from cortex.config import WorkflowLoader
+from cortex.constants import (
     DEFAULT_DB_PATH,
     DEFAULT_WEB_PORT,
     WORKFLOW_FILE,
 )
-from maestro.context import ContextEngine
-from maestro.conversation import ConversationManager
-from maestro.entropy import EntropyManager
-from maestro.models import IssueStatus
-from maestro.orchestrator import Orchestrator
-from maestro.pipeline import PipelineManager
-from maestro.planner import PlannerAgent
-from maestro.quality import QualityGate
-from maestro.models import BackendType
-from maestro.runner_pool import RunnerPool
-from maestro.watcher import IssueWatcher
-from maestro.web import create_app
-from maestro.mcp_server import create_mcp_server
-from maestro.mcp_client import MCPClientManager
-from maestro.auth import AuthManager
-from maestro.audit import AuditLogger
-from maestro.secrets import SecretManager
-from maestro.policy import PolicyEngine
+from cortex.context import ContextEngine
+from cortex.conversation import ConversationManager
+from cortex.entropy import EntropyManager
+from cortex.models import IssueStatus
+from cortex.orchestrator import Orchestrator
+from cortex.pipeline import PipelineManager
+from cortex.planner import PlannerAgent
+from cortex.quality import QualityGate
+from cortex.models import BackendType
+from cortex.runner_pool import RunnerPool
+from cortex.watcher import IssueWatcher
+from cortex.web import create_app
+from cortex.mcp_server import create_mcp_server
+from cortex.mcp_client import MCPClientManager
+from cortex.auth import AuthManager
+from cortex.audit import AuditLogger
+from cortex.secrets import SecretManager
+from cortex.policy import PolicyEngine
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -58,7 +58,7 @@ def setup_logging(verbose: bool) -> None:
 @click.option("--db", default=DEFAULT_DB_PATH, help="SQLite database path")
 @click.pass_context
 def main(ctx: click.Context, verbose: bool, db: str) -> None:
-    """Maestro - Autonomous coding agent orchestrator."""
+    """Cortex - Autonomous coding agent orchestrator."""
     setup_logging(verbose)
     ctx.ensure_object(dict)
     ctx.obj["db_path"] = db
@@ -222,7 +222,7 @@ async def _start_async(db_path: str, workflow: str, port: int, no_web: bool) -> 
         tasks.append(asyncio.create_task(server.serve(), name="web-server"))
         console.print(f"[green]Kanban board: http://localhost:{port}[/green]")
 
-    console.print("[green]Maestro started. Press Ctrl+C to stop.[/green]")
+    console.print("[green]Cortex started. Press Ctrl+C to stop.[/green]")
 
     # Wait for shutdown signal
     await shutdown_event.wait()
@@ -239,7 +239,7 @@ async def _start_async(db_path: str, workflow: str, port: int, no_web: bool) -> 
             pass
 
     await board.close()
-    console.print("[green]Maestro stopped.[/green]")
+    console.print("[green]Cortex stopped.[/green]")
 
 
 @main.command()

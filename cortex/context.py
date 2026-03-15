@@ -7,7 +7,7 @@ import logging
 import os
 from pathlib import Path
 
-from maestro.chat import ChatStore
+from cortex.chat import ChatStore
 
 logger = logging.getLogger(__name__)
 

@@ -6,11 +6,11 @@ import json
 import logging
 import re
 
-from maestro.board import Board
-from maestro.chat import ChatStore
-from maestro.models import Issue, MessageRole, PipelinePhase
-from maestro.runner import BaseRunner
-from maestro.runner_pool import RunnerPool
+from cortex.board import Board
+from cortex.chat import ChatStore
+from cortex.models import Issue, MessageRole, PipelinePhase
+from cortex.runner import BaseRunner
+from cortex.runner_pool import RunnerPool
 
 logger = logging.getLogger(__name__)
 

@@ -1,13 +1,13 @@
-# Maestro Platform
+# Cortex Platform
 
 Autonomous AI-powered SDLC orchestrator with per-phase backend selection, MCP integration, and enterprise security.
 
-Maestro manages the full lifecycle of software tasks: from free-form chat and intent classification through pipeline-driven multi-phase workflows, all backed by pluggable CLI backends (Claude, Copilot, Codex) with per-phase configuration, MCP tool federation, and opt-in enterprise security.
+Cortex manages the full lifecycle of software tasks: from free-form chat and intent classification through pipeline-driven multi-phase workflows, all backed by pluggable CLI backends (Claude, Copilot, Codex) with per-phase configuration, MCP tool federation, and opt-in enterprise security.
 
 ## Architecture
 
 ```
-maestro/
+cortex/
   board.py           # Kanban board: SQLite CRUD, issue lifecycle
   chat.py            # Pipeline + conversation message persistence
   config.py          # WORKFLOW.md parser (YAML frontmatter + Jinja2)
@@ -175,10 +175,10 @@ cp WORKFLOW.example.md WORKFLOW.md
 # Edit WORKFLOW.md with your backend settings
 
 # Start (CLI mode)
-uv run maestro start
+uv run cortex start
 
 # Start (production uvicorn)
-uv run uvicorn maestro.asgi:app --host 0.0.0.0 --port 8420
+uv run uvicorn cortex.asgi:app --host 0.0.0.0 --port 8420
 
 # Open http://localhost:8420
 ```
@@ -191,22 +191,22 @@ export CORTEX_AUTH_ENABLED=true
 export CORTEX_ADMIN_PASSWORD=my-secure-password
 export CORTEX_ENCRYPTION_KEY=my-encryption-key
 
-uv run maestro start
+uv run cortex start
 # Login at http://localhost:8420 (admin / my-secure-password)
 ```
 
 ### CLI Commands
 
 ```bash
-maestro start              # Start orchestrator + web UI
-maestro start --no-web     # Headless mode
-maestro start --port 9000  # Custom port
+cortex start              # Start orchestrator + web UI
+cortex start --no-web     # Headless mode
+cortex start --port 9000  # Custom port
 
-maestro create "Fix login bug" -d "Users can't log in after timeout" -p high
-maestro list               # List all issues
-maestro list -s todo       # Filter by status
-maestro show MST-1         # Show issue details
-maestro retry MST-1        # Retry a failed issue
+cortex create "Fix login bug" -d "Users can't log in after timeout" -p high
+cortex list               # List all issues
+cortex list -s todo       # Filter by status
+cortex show MST-1         # Show issue details
+cortex retry MST-1        # Retry a failed issue
 ```
 
 ## Configuration
@@ -230,7 +230,7 @@ orchestrator:
   max_retries: 3
   auto_approve: true
   web_port: 8420
-  db_path: "maestro.db"
+  db_path: "cortex.db"
   hooks:
     before_run: "npm install"
     after_run: "npm test"

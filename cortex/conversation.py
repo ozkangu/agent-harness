@@ -6,15 +6,15 @@ import json
 import logging
 from collections.abc import Awaitable, Callable
 
-from maestro.board import Board
-from maestro.chat import ChatStore
-from maestro.models import (
+from cortex.board import Board
+from cortex.chat import ChatStore
+from cortex.models import (
     ChatMessage,
     Conversation,
     MessageRole,
 )
-from maestro.runner import BaseRunner
-from maestro.runner_pool import RunnerPool
+from cortex.runner import BaseRunner
+from cortex.runner_pool import RunnerPool
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +131,7 @@ class ConversationManager:
             except Exception:
                 logger.debug("Context building failed, continuing without")
 
-        chat_prompt = f"""You are Maestro, an autonomous coding agent orchestrator assistant.
+        chat_prompt = f"""You are Cortex, an autonomous coding agent orchestrator assistant.
 {f'Context: {ctx}' if ctx else ''}
 
 Conversation history:

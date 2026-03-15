@@ -9,14 +9,14 @@ from unittest.mock import patch
 
 import pytest
 
-from maestro.config import (
+from cortex.config import (
     WorkflowLoader,
     load_workflow,
     parse_workflow,
     render_prompt,
     resolve_env_vars,
 )
-from maestro.models import BackendType, Issue, IssueStatus
+from cortex.models import BackendType, Issue, IssueStatus
 from datetime import datetime, timezone
 
 
@@ -43,7 +43,7 @@ def test_parse_workflow(workflow_content: str) -> None:
     assert config.copilot.backend == BackendType.CLAUDE
     assert config.copilot.binary == "claude"
     assert config.copilot.model == "sonnet"
-    assert config.copilot.agent == "maestro-worker"
+    assert config.copilot.agent == "cortex-worker"
     assert config.copilot.max_autopilot_continues == 50
     assert "shell(rm -rf *)" in config.copilot.deny_tools
     assert config.orchestrator.repo_url == "https://github.com/test/repo.git"
@@ -76,7 +76,7 @@ def test_render_prompt(workflow_content: str) -> None:
     config = parse_workflow(workflow_content)
     issue = Issue(
         id=1,
-        key="MST-1",
+        key="CTX-1",
         title="Fix bug",
         description="There is a bug",
         status=IssueStatus.TODO,
@@ -87,7 +87,7 @@ def test_render_prompt(workflow_content: str) -> None:
         attempt_count=0,
     )
     prompt = render_prompt(config, issue)
-    assert "MST-1" in prompt
+    assert "CTX-1" in prompt
     assert "Fix bug" in prompt
     assert "There is a bug" in prompt
     # No retry section for first attempt
@@ -98,7 +98,7 @@ def test_render_prompt_retry(workflow_content: str) -> None:
     config = parse_workflow(workflow_content)
     issue = Issue(
         id=1,
-        key="MST-2",
+        key="CTX-2",
         title="Retry task",
         description="desc",
         status=IssueStatus.TODO,
@@ -273,7 +273,7 @@ copilot:
   backend: "claude"
   binary: "claude"
   model: "sonnet"
-  agent: "maestro-worker"
+  agent: "cortex-worker"
 
 orchestrator:
   repo_url: "https://github.com/test/repo.git"
@@ -290,7 +290,7 @@ Prompt.
     assert cfg.copilot.backend == BackendType.CODEX
     assert cfg.copilot.binary == ""
     assert cfg.copilot.model == ""
-    assert cfg.copilot.agent == "maestro-worker"
+    assert cfg.copilot.agent == "cortex-worker"
 
 
 def test_workflow_loader_set_backend_uses_explicit_model(tmp_path: Path) -> None:

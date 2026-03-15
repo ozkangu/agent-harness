@@ -9,8 +9,8 @@ from datetime import datetime, timezone
 
 import aiosqlite
 
-from maestro.chat import ChatStore
-from maestro.models import QualityRun
+from cortex.chat import ChatStore
+from cortex.models import QualityRun
 
 logger = logging.getLogger(__name__)
 

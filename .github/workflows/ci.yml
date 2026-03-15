@@ -31,10 +31,10 @@ jobs:
         run: uv sync
 
       - name: Run linter
-        run: uv run ruff check maestro/
+        run: uv run ruff check cortex/
 
       - name: Run type checker
-        run: uv run mypy maestro/ --ignore-missing-imports
+        run: uv run mypy cortex/ --ignore-missing-imports
 
       - name: Run tests
         run: uv run pytest -x -q --tb=short

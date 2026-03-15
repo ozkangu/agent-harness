@@ -1,4 +1,4 @@
-"""Tests for maestro.middleware."""
+"""Tests for cortex.middleware."""
 
 from __future__ import annotations
 
@@ -11,8 +11,8 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 from starlette.testclient import TestClient
 
-from maestro.auth import Role, User
-from maestro.middleware import AuthMiddleware, RateLimitMiddleware
+from cortex.auth import Role, User
+from cortex.middleware import AuthMiddleware, RateLimitMiddleware
 
 pytestmark = pytest.mark.asyncio
 

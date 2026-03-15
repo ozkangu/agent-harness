@@ -12,7 +12,7 @@ import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
-from maestro.models import BackendConfig, BackendType
+from cortex.models import BackendConfig, BackendType
 
 logger = logging.getLogger(__name__)
 

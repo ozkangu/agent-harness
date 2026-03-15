@@ -1,4 +1,4 @@
-// Maestro Chat Panel - Pipeline & Conversation Management
+// Cortex Chat Panel - Pipeline & Conversation Management
 
 let currentPipelineId = null;
 let currentConversationId = null;

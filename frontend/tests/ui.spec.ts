@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test.describe("Maestro Platform UI", () => {
+test.describe("Cortex Platform UI", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
     // Wait for app to hydrate - either the app shell loads or connection error appears

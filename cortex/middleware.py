@@ -41,7 +41,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         if self._auth_manager is None or not self._auth_manager.enabled:
             # Auth disabled -- set anonymous admin-like user
-            from maestro.auth import User, Role
+            from cortex.auth import User, Role
             request.state.user = User(
                 id=0,
                 username="anonymous",

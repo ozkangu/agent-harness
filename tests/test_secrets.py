@@ -1,11 +1,11 @@
-"""Tests for maestro.secrets."""
+"""Tests for cortex.secrets."""
 
 from __future__ import annotations
 
 import aiosqlite
 import pytest
 
-from maestro.secrets import SecretManager, _xor_decrypt, _xor_encrypt
+from cortex.secrets import SecretManager, _xor_decrypt, _xor_encrypt
 
 pytestmark = pytest.mark.asyncio
 

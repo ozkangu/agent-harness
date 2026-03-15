@@ -17,7 +17,7 @@ orchestrator:
   backoff_base_seconds: 60
   backoff_max_seconds: 3600
   web_port: 8420
-  db_path: "maestro.db"
+  db_path: "cortex.db"
   issues_dir: "issues"
   auto_approve: true
   max_inner_iterations: 3

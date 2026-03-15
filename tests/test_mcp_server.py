@@ -1,4 +1,4 @@
-"""Tests for maestro.mcp_server."""
+"""Tests for cortex.mcp_server."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from maestro.mcp_server import create_mcp_server
+from cortex.mcp_server import create_mcp_server
 
 pytestmark = pytest.mark.asyncio
 
@@ -15,13 +15,13 @@ class TestMCPServer:
     def test_returns_none_without_mcp_package(self):
         with patch.dict("sys.modules", {"mcp": None, "mcp.server.fastmcp": None}):
             # Force ImportError by patching the import
-            with patch("maestro.mcp_server.create_mcp_server") as mock_create:
+            with patch("cortex.mcp_server.create_mcp_server") as mock_create:
                 # Test the real function behavior
                 pass
 
         # Directly test: if mcp is not importable, returns None
         import importlib
-        import maestro.mcp_server as mod
+        import cortex.mcp_server as mod
 
         original = create_mcp_server.__code__
 
@@ -41,10 +41,10 @@ class TestMCPServer:
 
         with patch.dict("sys.modules", {"mcp": MagicMock(), "mcp.server": MagicMock(), "mcp.server.fastmcp": mock_module}):
             import importlib
-            import maestro.mcp_server
+            import cortex.mcp_server
 
-            importlib.reload(maestro.mcp_server)
-            result = maestro.mcp_server.create_mcp_server(
+            importlib.reload(cortex.mcp_server)
+            result = cortex.mcp_server.create_mcp_server(
                 context_engine=MagicMock(),
                 chat_store=MagicMock(),
             )

@@ -1,10 +1,10 @@
-# Maestro Platform -- Architecture
+# Cortex Platform -- Architecture
 
-This document describes the internal architecture of Maestro: module responsibilities, data flow, component interactions, security model, and database schema.
+This document describes the internal architecture of Cortex: module responsibilities, data flow, component interactions, security model, and database schema.
 
 ## System Overview
 
-Maestro is a single-process Python application with an embedded FastAPI web server and a Next.js frontend. All state lives in a single SQLite database (WAL mode). The system coordinates multiple AI CLI backends (Claude, Copilot, Codex) through an async event loop.
+Cortex is a single-process Python application with an embedded FastAPI web server and a Next.js frontend. All state lives in a single SQLite database (WAL mode). The system coordinates multiple AI CLI backends (Claude, Copilot, Codex) through an async event loop.
 
 ```
                           ┌───────────────────────────────────┐
@@ -17,7 +17,7 @@ Maestro is a single-process Python application with an embedded FastAPI web serv
 │  CLI      │    │              FastAPI Web Server               │
 │ (Click)   │    │  ┌──────────┐  ┌──────────┐  ┌───────────┐  │
 │           │    │  │ Auth MW  │→ │ Rate MW  │→ │ Endpoints │  │
-│  maestro  │    │  └──────────┘  └──────────┘  └─────┬─────┘  │
+│  cortex   │    │  └──────────┘  └──────────┘  └─────┬─────┘  │
 │  start    │    │                                     │        │
 │  create   │    └─────────────────────────────────────┼────────┘
 │  list     │                                          │
@@ -57,77 +57,77 @@ Maestro is a single-process Python application with an embedded FastAPI web serv
 
 | Module | File | Purpose |
 |--------|------|---------|
-| **Board** | `maestro/board.py` | SQLite CRUD for issues, activity log, dashboard stats. Handles schema creation and additive migrations. |
-| **Models** | `maestro/models.py` | All data classes (`Issue`, `Pipeline`, `Message`, etc.), enums (`PipelinePhase`, `IssueStatus`, `BackendType`), SQL schema (16 tables), and valid state transitions. |
-| **Constants** | `maestro/constants.py` | Default paths (`maestro.db`), ports (8420), prefixes (`MST-`). |
+| **Board** | `cortex/board.py` | SQLite CRUD for issues, activity log, dashboard stats. Handles schema creation and additive migrations. |
+| **Models** | `cortex/models.py` | All data classes (`Issue`, `Pipeline`, `Message`, etc.), enums (`PipelinePhase`, `IssueStatus`, `BackendType`), SQL schema (16 tables), and valid state transitions. |
+| **Constants** | `cortex/constants.py` | Default paths (`cortex.db`), ports (8420), prefixes (`MST-`). |
 
 ### Pipeline System
 
 | Module | File | Purpose |
 |--------|------|---------|
-| **PipelineManager** | `maestro/pipeline.py` | 14-phase state machine. Manages phase transitions, approval gates (`AWAITING_APPROVAL_*`), auto-approval, and event-driven coding completion. |
-| **PlannerAgent** | `maestro/planner.py` | AI-powered phase executors. Each pipeline phase maps to a method that selects the appropriate runner from `RunnerPool` and executes the AI backend. |
-| **ChatStore** | `maestro/chat.py` | Persists pipeline messages and conversation messages to SQLite. |
+| **PipelineManager** | `cortex/pipeline.py` | 14-phase state machine. Manages phase transitions, approval gates (`AWAITING_APPROVAL_*`), auto-approval, and event-driven coding completion. |
+| **PlannerAgent** | `cortex/planner.py` | AI-powered phase executors. Each pipeline phase maps to a method that selects the appropriate runner from `RunnerPool` and executes the AI backend. |
+| **ChatStore** | `cortex/chat.py` | Persists pipeline messages and conversation messages to SQLite. |
 
 ### Orchestrator
 
 | Module | File | Purpose |
 |--------|------|---------|
-| **Orchestrator** | `maestro/orchestrator.py` | Async poll loop. Picks TODO issues, dispatches agents, manages retries (max 3), and coordinates with `QualityGate` for post-run validation. |
-| **IssueWatcher** | `maestro/watcher.py` | Watches the `issues/` directory for new Markdown files and auto-creates board issues. |
-| **Workspace** | `maestro/workspace.py` | Per-issue git branch isolation. Creates branches, manages worktrees. |
+| **Orchestrator** | `cortex/orchestrator.py` | Async poll loop. Picks TODO issues, dispatches agents, manages retries (max 3), and coordinates with `QualityGate` for post-run validation. |
+| **IssueWatcher** | `cortex/watcher.py` | Watches the `issues/` directory for new Markdown files and auto-creates board issues. |
+| **Workspace** | `cortex/workspace.py` | Per-issue git branch isolation. Creates branches, manages worktrees. |
 
 ### Runner System
 
 | Module | File | Purpose |
 |--------|------|---------|
-| **Runner** | `maestro/runner.py` | Abstract `BaseRunner` + three implementations: `ClaudeRunner`, `CopilotCLIRunner`, `CodexRunner`. Handles subprocess execution, JSONL streaming, stall/turn timeouts, and secret filtering. |
-| **RunnerPool** | `maestro/runner_pool.py` | Maintains a cache of runners keyed by `"{backend}:{model}:{binary}"`. Resolves per-phase overrides to the correct runner instance. |
+| **Runner** | `cortex/runner.py` | Abstract `BaseRunner` + three implementations: `ClaudeRunner`, `CopilotCLIRunner`, `CodexRunner`. Handles subprocess execution, JSONL streaming, stall/turn timeouts, and secret filtering. |
+| **RunnerPool** | `cortex/runner_pool.py` | Maintains a cache of runners keyed by `"{backend}:{model}:{binary}"`. Resolves per-phase overrides to the correct runner instance. |
 
 ### Context & Quality
 
 | Module | File | Purpose |
 |--------|------|---------|
-| **ContextEngine** | `maestro/context.py` | Assembles enriched context from AGENTS.md files, repo tree map, constraint files (pyproject.toml, tsconfig.json, etc.), and MCP tools. |
-| **QualityGate** | `maestro/quality.py` | Post-run validation: lint (ruff), tests (pytest), typecheck (mypy), structural checks. Failed checks trigger retries. |
-| **EntropyManager** | `maestro/entropy.py` | Manual codebase health scanning. Identifies technical debt and improvement opportunities. |
+| **ContextEngine** | `cortex/context.py` | Assembles enriched context from AGENTS.md files, repo tree map, constraint files (pyproject.toml, tsconfig.json, etc.), and MCP tools. |
+| **QualityGate** | `cortex/quality.py` | Post-run validation: lint (ruff), tests (pytest), typecheck (mypy), structural checks. Failed checks trigger retries. |
+| **EntropyManager** | `cortex/entropy.py` | Manual codebase health scanning. Identifies technical debt and improvement opportunities. |
 
 ### Conversation
 
 | Module | File | Purpose |
 |--------|------|---------|
-| **ConversationManager** | `maestro/conversation.py` | Dual-mode chat. Classifies user intent via LLM: `chat`, `quick_task`, `create_issue`, `start_pipeline`. Routes accordingly. |
+| **ConversationManager** | `cortex/conversation.py` | Dual-mode chat. Classifies user intent via LLM: `chat`, `quick_task`, `create_issue`, `start_pipeline`. Routes accordingly. |
 
 ### Configuration
 
 | Module | File | Purpose |
 |--------|------|---------|
-| **WorkflowLoader** | `maestro/config.py` | Parses `WORKFLOW.md` (YAML frontmatter + Jinja2 template). Extracts `copilot`, `orchestrator`, and `phase_backends` sections. |
+| **WorkflowLoader** | `cortex/config.py` | Parses `WORKFLOW.md` (YAML frontmatter + Jinja2 template). Extracts `copilot`, `orchestrator`, and `phase_backends` sections. |
 
 ### MCP Integration
 
 | Module | File | Purpose |
 |--------|------|---------|
-| **MCP Server** | `maestro/mcp_server.py` | Exposes Maestro as an MCP server via FastMCP. 6 tools (`get_repo_map`, `get_agents_md`, `get_constraints`, `build_full_context`, `list_pipelines`, `get_pipeline_status`) + 2 resources (`cortex://repo-map`, `cortex://agents-md`). |
-| **MCP Client** | `maestro/mcp_client.py` | Connects to external MCP servers via stdio transport. Auto-discovers tools on connection. Tools are injected into agent context. |
+| **MCP Server** | `cortex/mcp_server.py` | Exposes Cortex as an MCP server via FastMCP. 6 tools (`get_repo_map`, `get_agents_md`, `get_constraints`, `build_full_context`, `list_pipelines`, `get_pipeline_status`) + 2 resources (`cortex://repo-map`, `cortex://agents-md`). |
+| **MCP Client** | `cortex/mcp_client.py` | Connects to external MCP servers via stdio transport. Auto-discovers tools on connection. Tools are injected into agent context. |
 
 ### Enterprise Security
 
 | Module | File | Purpose |
 |--------|------|---------|
-| **Auth** | `maestro/auth.py` | JWT authentication (PyJWT, HS256, 24h expiry), RBAC (admin/engineer/viewer), API key support, password hashing (bcrypt, with transparent legacy SHA-256 migration). |
-| **Audit** | `maestro/audit.py` | Immutable audit trail. Logs all write operations with user, action, resource, IP, timestamp. Supports query filtering and CSV export. |
-| **Secrets** | `maestro/secrets.py` | Encrypted credential storage. AES-256 via Fernet (with XOR fallback). Secrets injected into runners as environment variables. Values never exposed in API responses. |
-| **Policy** | `maestro/policy.py` | SOUL.md policy engine. Tool approval/denial rules, budget limits with scope-based tracking. Auto-loads SOUL.md from repo root. |
-| **Middleware** | `maestro/middleware.py` | `AuthMiddleware` (Bearer/ApiKey/query param verification) + `RateLimitMiddleware` (token-bucket, 120 req/min per IP). |
+| **Auth** | `cortex/auth.py` | JWT authentication (PyJWT, HS256, 24h expiry), RBAC (admin/engineer/viewer), API key support, password hashing (bcrypt, with transparent legacy SHA-256 migration). |
+| **Audit** | `cortex/audit.py` | Immutable audit trail. Logs all write operations with user, action, resource, IP, timestamp. Supports query filtering and CSV export. |
+| **Secrets** | `cortex/secrets.py` | Encrypted credential storage. AES-256 via Fernet (with XOR fallback). Secrets injected into runners as environment variables. Values never exposed in API responses. |
+| **Policy** | `cortex/policy.py` | SOUL.md policy engine. Tool approval/denial rules, budget limits with scope-based tracking. Auto-loads SOUL.md from repo root. |
+| **Middleware** | `cortex/middleware.py` | `AuthMiddleware` (Bearer/ApiKey/query param verification) + `RateLimitMiddleware` (token-bucket, 120 req/min per IP). |
 
 ### Web Layer
 
 | Module | File | Purpose |
 |--------|------|---------|
-| **Web** | `maestro/web.py` | FastAPI application factory. 75+ REST endpoints across 13 groups. WebSocket for real-time events. CORS, static files, middleware wiring. |
-| **Main** | `maestro/main.py` | CLI entry point (Click). Initializes all components, wires dependencies, starts uvicorn programmatically. |
-| **ASGI** | `maestro/asgi.py` | Production ASGI entry point. Raw ASGI protocol with lifespan management. Usage: `uvicorn maestro.asgi:app --host 0.0.0.0 --port 8420` |
+| **Web** | `cortex/web.py` | FastAPI application factory. 75+ REST endpoints across 13 groups. WebSocket for real-time events. CORS, static files, middleware wiring. |
+| **Main** | `cortex/main.py` | CLI entry point (Click). Initializes all components, wires dependencies, starts uvicorn programmatically. |
+| **ASGI** | `cortex/asgi.py` | Production ASGI entry point. Raw ASGI protocol with lifespan management. Usage: `uvicorn cortex.asgi:app --host 0.0.0.0 --port 8420` |
 
 ---
 
@@ -330,7 +330,7 @@ SecretManager
                             │
                             ▼
                     ┌──────────────┐
-                    │  MCP Server  │   ← maestro/mcp_server.py
+                    │  MCP Server  │   ← cortex/mcp_server.py
                     │  (FastMCP)   │
                     │              │
                     │  Tools:      │
@@ -352,7 +352,7 @@ SecretManager
                     └──────┬───────┘
                            │
                     ┌──────┴───────┐
-                    │  MCP Client  │   ← maestro/mcp_client.py
+                    │  MCP Client  │   ← cortex/mcp_client.py
                     │  Manager     │
                     │              │
                     │  Connects to │
@@ -685,10 +685,10 @@ Client                  AuthMW              RateLimitMW           Endpoint
 
 ### Single Process
 
-Maestro runs as a single Python process:
+Cortex runs as a single Python process:
 
 ```
-maestro start
+cortex start
     │
     ├── SQLite DB init + migrations
     ├── RunnerPool init (per-phase backends)

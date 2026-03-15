@@ -2,7 +2,7 @@
 copilot:
   binary: "copilot"
   model: "claude-opus-4-6"
-  agent: "maestro-worker"
+  agent: "cortex-worker"
   max_autopilot_continues: 50
   deny_tools:
     - "shell(rm -rf *)"
@@ -19,7 +19,7 @@ orchestrator:
   backoff_base_seconds: 60
   backoff_max_seconds: 3600
   web_port: 8420
-  db_path: "maestro.db"
+  db_path: "cortex.db"
   issues_dir: "issues"
   hooks:
     after_create: "./scripts/setup.sh"

@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from maestro.models import BackendConfig, BackendType, CopilotConfig
-from maestro.runner import (
+from cortex.models import BackendConfig, BackendType, CopilotConfig
+from cortex.runner import (
     BaseRunner,
     ClaudeRunner,
     CodexRunner,
@@ -29,7 +29,7 @@ class TestClaudeRunner:
             backend=BackendType.CLAUDE,
             binary="claude",
             model="sonnet",
-            agent="maestro-worker",
+            agent="cortex-worker",
             max_autopilot_continues=50,
             deny_tools=["shell(rm -rf *)"],
         )
@@ -46,7 +46,7 @@ class TestClaudeRunner:
         assert "sonnet" in args
         assert "--dangerously-skip-permissions" in args
         assert "--agent" in args
-        assert "maestro-worker" in args
+        assert "cortex-worker" in args
         assert "--disallowed-tools" in args
         assert "shell(rm -rf *)" in args
 

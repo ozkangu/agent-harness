@@ -1,4 +1,4 @@
-"""Tests for maestro.policy."""
+"""Tests for cortex.policy."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import json
 import aiosqlite
 import pytest
 
-from maestro.policy import PolicyEngine
+from cortex.policy import PolicyEngine
 
 pytestmark = pytest.mark.asyncio
 
